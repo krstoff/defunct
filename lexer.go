@@ -43,7 +43,7 @@ func (runes *Runes) ReadRune() (rune, error) {
 }
 
 func (runes *Runes) UnreadRune() {
-	runes.peeked = '0'
+	runes.peeked = 0
 	runes.err = nil
 	runes.r.UnreadRune()
 }
@@ -59,7 +59,9 @@ type Token interface {
 
 type Delimeter int
 type Reserved int
-type Identifier Symbol
+type Identifier struct {
+	sym Symbol
+}
 type StringLit string
 type NumLit float64
 
@@ -83,7 +85,7 @@ var keywords =  map[string]Reserved {
 	"else": Else,
 }
 
-var st = NewSymbolTable()
+var st = NewSymbolTable(nil)
 
 const (
 	OpenParen Delimeter = iota
@@ -162,7 +164,7 @@ func lexNumber(runes Runes) (Token, error) {
 	var err error
 	digits := ""
 
-	for c, _ = runes.PeekRune(); unicode.IsDigit(c); c, _ = runes.PeekRune() {
+	for c, _ = runes.PeekRune(); isIdentChar(c); c, _ = runes.PeekRune() {
 		c, err = runes.ReadRune()
 		if err != nil { return nil, err }
 		digits = digits + string(c)
@@ -172,7 +174,11 @@ func lexNumber(runes Runes) (Token, error) {
 		panic("Called lexNumber on a non-number string.")
 	}
 
-	n, _ := strconv.ParseFloat(digits, 64)
+	n, err := strconv.ParseFloat(digits, 64)
+	if err != nil {
+		err = fmt.Errorf("lexNumber: invalid number literal %s", digits)
+		return nil, err
+	}
 	t := NumLit(n)
 	return &t, nil
 }
@@ -197,7 +203,7 @@ func lexIdentOrReserved(runes Runes) (Token, error) {
 	if ok {
 		return &key, nil
 	} else {
-		i := Identifier(st.Intern(ident))
+		i := Identifier { sym: st.Intern(ident) }
 		return &i, nil
 	}
 }

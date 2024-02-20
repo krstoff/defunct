@@ -1,27 +1,29 @@
 package main
 
-type Symbol int
-type SymbolTable struct {
-	table map[string]Symbol
-	n int
+type Entry struct {
+	name string
 }
-
-func (st *SymbolTable) inc() int {
-	st.n += 1
-	return st.n
+type Symbol *Entry
+type SymbolTable struct {
+	table map[string] *Entry
+	parent *SymbolTable
 }
 
 func (st *SymbolTable) Intern(s string) Symbol {
-	n, ok := st.table[s]
+	entry, ok := st.table[s]
 	if ok {
-		return n
+		return entry
 	}
-	st.table[s] = Symbol(st.inc())
-	return Symbol(st.n)
+	e := &Entry {
+		name: s,
+	}
+	st.table[s] = e
+	return Symbol(e)
 }
 
-func NewSymbolTable() SymbolTable {
+func NewSymbolTable(parent *SymbolTable) SymbolTable {
 	var st SymbolTable
-	st.table = make(map[string]Symbol)
+	st.table = make(map[string] *Entry)
+	st.parent = parent
 	return st
 }

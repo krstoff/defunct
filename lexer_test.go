@@ -39,10 +39,9 @@ func TestLexNumber(t *testing.T) {
 		t.Errorf("Tried to parse 124, found %f instead", n)
 	}
 
-	r = NewRunes(strings.NewReader("754f"))
-	tok, _ = lexNumber(r)
-	n = getNumber(tok)
-	if n != 754.0 {
-		t.Errorf("Tried to parse 754, found %f instead", n)
+	r = NewRunes(strings.NewReader("754furb"))
+	tok, err := lexNumber(r)
+	if err == nil {
+		t.Error("Tried to parse 754furb, did not error")
 	}
 }
