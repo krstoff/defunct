@@ -95,16 +95,19 @@ const (
 
 
 // todo
-func (r *Reserved) Source() (int, int) {
+func (token Reserved) Source() (int, int) {
 	return 0, 0
 }
-func (r *Identifier) Source() (int, int) {
+func (token Delimeter) Source() (int, int) {
 	return 0, 0
 }
-func (r *StringLit) Source() (int, int) {
+func (token Identifier) Source() (int, int) {
 	return 0, 0
 }
-func (r *NumLit) Source() (int, int) {
+func (token StringLit) Source() (int, int) {
+	return 0, 0
+}
+func (token NumLit) Source() (int, int) {
 	return 0, 0
 }
 
@@ -114,38 +117,39 @@ func (r *NumLit) Source() (int, int) {
 	
 // }
 
-// /// Returns nil, bufio.ErrFinalToken on end of input
-// func ReadToken(runes RuneReader) Token, error {
-// 	r, err := runes.ReadRune()
-// 	if err { goto readErr }
+/// Returns nil, bufio.ErrFinalToken on end of input
+func ReadToken(runes Runes) (Token, error) {
+	r, err := runes.ReadRune()
+	if err != nil { goto readErr }
 
-// 	// trim whitespace
-// 	for isWhitespace(r) {
-// 		r, err := runes.ReadRune()
-// 		if err { goto readErr }
-// 	}
+	// trim whitespace
+	for isWhitespace(r) {
+		r, err = runes.ReadRune()
+		if err != nil { goto readErr }
+	}
 
-// 	switch {
-// 	case r == '(':
-// 		return OpenParen, nil
-//     case r == ')':
-// 		return CloseParen, nil
-// 	case r == '=':
-// 		return Equals, nil
-// 	case isNumberStartChar(c):
-// 		runes.UnreadRune(c)
-// 		return lexNumber(runes)
-// 	case isIdentChar(c):
-// 		runes.UnreadRune(c)
-// 		return lexIdentOrReserved(runes)
+	switch {
+	case r == '(':
+		return OpenParen, nil
+    case r == ')':
+		return CloseParen, nil
+	case r == '=':
+		return Equals, nil
+	case isNumberStartChar(r):
+		runes.UnreadRune()
+		return lexNumber(runes)
+	case isIdentChar(r):
+		runes.UnreadRune()
+		return lexIdentOrReserved(runes)
 
-// 	default:
-// 		return nil, InvalidCharacter(c)
-// 	}
+	default:
+		ivc := InvalidCharacter(r)
+		return nil, &ivc
+	}
 
-// 	readErr:
-// 		return nil, err
-// }
+	readErr:
+		return nil, err
+}
 
 func isWhitespace(r rune) bool {
 	return unicode.IsSpace(r)
@@ -164,7 +168,7 @@ func lexNumber(runes Runes) (Token, error) {
 	var err error
 	digits := ""
 
-	for c, _ = runes.PeekRune(); isIdentChar(c); c, _ = runes.PeekRune() {
+	for c, _ = runes.PeekRune(); isIdentChar(c) || c == '.'; c, _ = runes.PeekRune() {
 		c, err = runes.ReadRune()
 		if err != nil { return nil, err }
 		digits = digits + string(c)
@@ -180,7 +184,7 @@ func lexNumber(runes Runes) (Token, error) {
 		return nil, err
 	}
 	t := NumLit(n)
-	return &t, nil
+	return t, nil
 }
 
 
@@ -201,9 +205,9 @@ func lexIdentOrReserved(runes Runes) (Token, error) {
 
 	key, ok := keywords[ident]
 	if ok {
-		return &key, nil
+		return key, nil
 	} else {
 		i := Identifier { sym: st.Intern(ident) }
-		return &i, nil
+		return i, nil
 	}
 }
