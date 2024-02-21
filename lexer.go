@@ -10,10 +10,10 @@ import "unicode"
 type Runes struct {
 	peeked rune
 	err error
-	r io.RuneScanner
+	r io.RuneReader
 }
 
-func NewRunes(r io.RuneScanner) Runes {
+func NewRunes(r io.RuneReader) Runes {
 	var runes Runes
 	runes.r = r
 	return runes
@@ -40,12 +40,6 @@ func (runes *Runes) ReadRune() (rune, error) {
 	var c rune
 	c, _, runes.err = runes.r.ReadRune()
 	return c, runes.err
-}
-
-func (runes *Runes) UnreadRune() {
-	runes.peeked = 0
-	runes.err = nil
-	runes.r.UnreadRune()
 }
 
 type InvalidCharacter rune
@@ -111,6 +105,48 @@ func (token NumLit) Source() (int, int) {
 	return 0, 0
 }
 
+type Lexer struct {
+	runes Runes
+	row, col int
+	st *SymbolTable
+}
+
+// func NewLexer(runes Runes, st *SymbolTable) *Lexer {
+// 	lexer := new(Lexer)
+// 	lexer.runes = runes
+// 	lexer.st = st
+// 	return lexer
+// }
+
+// func (lex *Lexer) PeekRune() (rune, error) {
+// 	r, e := lex.runes.PeekRune()
+// 	return r, e
+// }
+
+// func (lex *Lexer) ReadRune() (rune, error) {
+// 	r, e := lex.runes.ReadRune()
+// 	if e == nil {
+// 		if r == '\n' {
+// 			lex.row += 1
+// 			lex.col = 0
+// 		} else {
+// 			lex.col += 1
+// 		}
+// 	}
+// 	return r, e
+// }
+
+// func (lex *Lexer) UnreadRune() {
+// 	lex.runes.UnreadRune()
+// 	r, e := lex.runes.PeekRune()
+// 	if r == '\n' {
+// 		lex.row -= 1
+// 		lex.col = 0
+// 	} else {
+// 		lex.col -= 1
+// 	}
+// }
+
 // func ReadAllTokens(r io.Reader) []Token {
 // 	runes := bufio.NewReader(r)
 // 	tokens := make([]Token)
@@ -119,27 +155,30 @@ func (token NumLit) Source() (int, int) {
 
 /// Returns nil, bufio.ErrFinalToken on end of input
 func ReadToken(runes Runes) (Token, error) {
-	r, err := runes.ReadRune()
+	r, err := runes.PeekRune()
 	if err != nil { goto readErr }
 
 	// trim whitespace
 	for isWhitespace(r) {
-		r, err = runes.ReadRune()
+		_, err = runes.ReadRune()
 		if err != nil { goto readErr }
+		r, err = runes.PeekRune()
 	}
 
+	r, err = runes.PeekRune()
 	switch {
 	case r == '(':
+		_, _ = runes.ReadRune()
 		return OpenParen, nil
     case r == ')':
+		_, _ = runes.ReadRune()
 		return CloseParen, nil
 	case r == '=':
+		_, _ = runes.ReadRune()
 		return Equals, nil
 	case isNumberStartChar(r):
-		runes.UnreadRune()
 		return lexNumber(runes)
 	case isIdentChar(r):
-		runes.UnreadRune()
 		return lexIdentOrReserved(runes)
 
 	default:

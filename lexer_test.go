@@ -4,7 +4,7 @@ import "testing"
 import "reflect"
 import "strings"
 
-func  TestRuneScanner(t *testing.T) {
+func  TestRuneReader(t *testing.T) {
     r := NewRunes(strings.NewReader("abcd"))
 	c, _ := r.PeekRune()
 	if c != 'a' {
