@@ -79,8 +79,6 @@ var keywords =  map[string]Reserved {
 	"else": Else,
 }
 
-var st = NewSymbolTable(nil)
-
 const (
 	OpenParen Delimeter = iota
 	CloseParen
@@ -111,41 +109,30 @@ type Lexer struct {
 	st *SymbolTable
 }
 
-// func NewLexer(runes Runes, st *SymbolTable) *Lexer {
-// 	lexer := new(Lexer)
-// 	lexer.runes = runes
-// 	lexer.st = st
-// 	return lexer
-// }
+func NewLexer(runes Runes, st *SymbolTable) *Lexer {
+	lexer := new(Lexer)
+	lexer.runes = runes
+	lexer.st = st
+	return lexer
+}
 
-// func (lex *Lexer) PeekRune() (rune, error) {
-// 	r, e := lex.runes.PeekRune()
-// 	return r, e
-// }
+func (lex *Lexer) PeekRune() (rune, error) {
+	r, e := lex.runes.PeekRune()
+	return r, e
+}
 
-// func (lex *Lexer) ReadRune() (rune, error) {
-// 	r, e := lex.runes.ReadRune()
-// 	if e == nil {
-// 		if r == '\n' {
-// 			lex.row += 1
-// 			lex.col = 0
-// 		} else {
-// 			lex.col += 1
-// 		}
-// 	}
-// 	return r, e
-// }
-
-// func (lex *Lexer) UnreadRune() {
-// 	lex.runes.UnreadRune()
-// 	r, e := lex.runes.PeekRune()
-// 	if r == '\n' {
-// 		lex.row -= 1
-// 		lex.col = 0
-// 	} else {
-// 		lex.col -= 1
-// 	}
-// }
+func (lex *Lexer) ReadRune() (rune, error) {
+	r, e := lex.runes.ReadRune()
+	if e == nil {
+		if r == '\n' {
+			lex.row += 1
+			lex.col = 0
+		} else {
+			lex.col += 1
+		}
+	}
+	return r, e
+}
 
 // func ReadAllTokens(r io.Reader) []Token {
 // 	runes := bufio.NewReader(r)
@@ -154,32 +141,32 @@ type Lexer struct {
 // }
 
 /// Returns nil, bufio.ErrFinalToken on end of input
-func ReadToken(runes Runes) (Token, error) {
-	r, err := runes.PeekRune()
+func (lex *Lexer) ReadToken() (Token, error) {
+	r, err := lex.PeekRune()
 	if err != nil { goto readErr }
 
 	// trim whitespace
 	for isWhitespace(r) {
-		_, err = runes.ReadRune()
+		_, err = lex.ReadRune()
 		if err != nil { goto readErr }
-		r, err = runes.PeekRune()
+		r, err = lex.PeekRune()
 	}
 
-	r, err = runes.PeekRune()
+	r, err = lex.PeekRune()
 	switch {
 	case r == '(':
-		_, _ = runes.ReadRune()
+		_, _ = lex.ReadRune()
 		return OpenParen, nil
     case r == ')':
-		_, _ = runes.ReadRune()
+		_, _ = lex.ReadRune()
 		return CloseParen, nil
 	case r == '=':
-		_, _ = runes.ReadRune()
+		_, _ = lex.ReadRune()
 		return Equals, nil
 	case isNumberStartChar(r):
-		return lexNumber(runes)
+		return lex.lexNumber()
 	case isIdentChar(r):
-		return lexIdentOrReserved(runes)
+		return lex.lexIdentOrReserved()
 
 	default:
 		ivc := InvalidCharacter(r)
@@ -202,13 +189,13 @@ func isIdentChar(c rune) bool {
 	return unicode.IsLetter(c) || unicode.IsDigit(c) || c == '_'
 }
 
-func lexNumber(runes Runes) (Token, error) {
+func (lex *Lexer) lexNumber() (Token, error) {
 	var c rune
 	var err error
 	digits := ""
 
-	for c, _ = runes.PeekRune(); isIdentChar(c) || c == '.'; c, _ = runes.PeekRune() {
-		c, err = runes.ReadRune()
+	for c, _ = lex.PeekRune(); isIdentChar(c) || c == '.'; c, _ = lex.PeekRune() {
+		c, err = lex.ReadRune()
 		if err != nil { return nil, err }
 		digits = digits + string(c)
 	}
@@ -227,13 +214,13 @@ func lexNumber(runes Runes) (Token, error) {
 }
 
 
-func lexIdentOrReserved(runes Runes) (Token, error) {
+func (lex *Lexer) lexIdentOrReserved() (Token, error) {
 	var c rune
 	var err error
 	ident := ""
 
-	for c, _ = runes.PeekRune(); isIdentChar(c); c, _ = runes.PeekRune() {
-		c, err = runes.ReadRune()
+	for c, _ = lex.PeekRune(); isIdentChar(c); c, _ = lex.PeekRune() {
+		c, err = lex.ReadRune()
 		if err != nil { return nil, err }
 		ident = ident + string(c)
 	}
@@ -246,7 +233,7 @@ func lexIdentOrReserved(runes Runes) (Token, error) {
 	if ok {
 		return key, nil
 	} else {
-		i := Identifier { sym: st.Intern(ident) }
+		i := Identifier { sym: lex.st.Intern(ident) }
 		return i, nil
 	}
 }

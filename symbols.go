@@ -21,9 +21,9 @@ func (st *SymbolTable) Intern(s string) Symbol {
 	return Symbol(e)
 }
 
-func NewSymbolTable(parent *SymbolTable) SymbolTable {
+func NewSymbolTable(parent *SymbolTable) *SymbolTable {
 	var st SymbolTable
 	st.table = make(map[string] *Entry)
 	st.parent = parent
-	return st
+	return &st
 }
