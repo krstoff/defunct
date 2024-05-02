@@ -2,10 +2,9 @@ package main
 
 import "io"
 import "fmt"
-// import "bufio"
-// import "errors"
 import "strconv"
 import "unicode"
+import "strings"
 
 type Runes struct {
 	peeked rune
@@ -82,6 +81,8 @@ var keywords =  map[string]Reserved {
 const (
 	OpenParen Delimeter = iota
 	CloseParen
+	OpenBracket
+	CloseBracket
 	Equals
 )
 
@@ -107,13 +108,26 @@ type Lexer struct {
 	runes Runes
 	row, col int
 	st *SymbolTable
+	src string
 }
 
-func NewLexer(runes Runes, st *SymbolTable) *Lexer {
+func NewLexer(r io.RuneReader, st *SymbolTable) *Lexer {
+	runes := NewRunes(r)
 	lexer := new(Lexer)
 	lexer.runes = runes
+	if st == nil {
+		st = NewSymbolTable(nil)
+	}
 	lexer.st = st
 	return lexer
+}
+
+func stringLexer(s string) *Lexer {
+	r := strings.NewReader(s)
+	st := NewSymbolTable(nil)
+	lex := NewLexer(r, st)
+	lex.src = s
+	return lex
 }
 
 func (lex *Lexer) PeekRune() (rune, error) {
@@ -133,12 +147,6 @@ func (lex *Lexer) ReadRune() (rune, error) {
 	}
 	return r, e
 }
-
-// func ReadAllTokens(r io.Reader) []Token {
-// 	runes := bufio.NewReader(r)
-// 	tokens := make([]Token)
-	
-// }
 
 /// Returns nil, bufio.ErrFinalToken on end of input
 func (lex *Lexer) ReadToken() (Token, error) {
@@ -163,6 +171,12 @@ func (lex *Lexer) ReadToken() (Token, error) {
 	case r == '=':
 		_, _ = lex.ReadRune()
 		return Equals, nil
+	case r == '[':
+		_, _ = lex.ReadRune()
+		return OpenBracket, nil
+	case r == ']':
+		_, _ = lex.ReadRune()
+		return CloseBracket, nil
 	case isNumberStartChar(r):
 		return lex.lexNumber()
 	case isIdentChar(r):

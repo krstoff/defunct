@@ -4,12 +4,6 @@ import "testing"
 import "reflect"
 import "strings"
 
-func stringLexer(s string) *Lexer {
-	r := NewRunes(strings.NewReader(s))
-	st := NewSymbolTable(nil)
-	lex := NewLexer(r, st)
-	return lex
-}
 
 func  TestRuneReader(t *testing.T) {
     r := NewRunes(strings.NewReader("abcd"))
@@ -57,13 +51,13 @@ func TestLexNumber(t *testing.T) {
 
 func TestReadToken(t *testing.T) {
 	var err error
-	lex := stringLexer("1 ( 2.52 (=) fifty defun 312 4")
+	lex := stringLexer("1 ( 2.52 (=) fifty defun) 312 4")
 	expected := []Token {
 		NumLit(1.0),
 		Delimeter(OpenParen),
 		NumLit(2.52),
 		Delimeter(OpenParen), Delimeter(Equals), Delimeter(CloseParen),
-		Identifier{ sym: lex.st.Intern("fifty")}, Reserved(Defun),
+		Identifier{ sym: lex.st.Intern("fifty")}, Reserved(Defun), Delimeter(CloseParen),
 		NumLit(312.0), NumLit(4),
 	}
 	tokens := []Token {}
