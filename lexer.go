@@ -109,6 +109,8 @@ type Lexer struct {
 	row, col int
 	st *SymbolTable
 	src string
+	peeked Token
+	err error
 }
 
 func NewLexer(r io.RuneReader, st *SymbolTable) *Lexer {
@@ -148,8 +150,31 @@ func (lex *Lexer) ReadRune() (rune, error) {
 	return r, e
 }
 
+func (lex *Lexer) PeekToken() (Token, error) {
+	if lex.peeked != nil  || lex.err != nil {
+		return lex.peeked, lex.err
+	}
+	t, err := lex.readToken()
+	lex.peeked = t
+	lex.err = err
+	return lex.peeked, lex.err
+}
+
+func (lex *Lexer) NextToken() (Token, error) {
+	if lex.peeked != nil || lex.err != nil {
+		peeked := lex.peeked
+		lex.peeked = nil
+		return peeked, lex.err
+	}
+	lex.peeked = nil
+	lex.err = nil
+	var t Token
+	t, lex.err = lex.readToken()
+	return t, lex.err
+}
+
 /// Returns nil, bufio.ErrFinalToken on end of input
-func (lex *Lexer) ReadToken() (Token, error) {
+func (lex *Lexer) readToken() (Token, error) {
 	r, err := lex.PeekRune()
 	if err != nil { goto readErr }
 

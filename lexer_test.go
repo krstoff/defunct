@@ -49,7 +49,7 @@ func TestLexNumber(t *testing.T) {
 	}
 }
 
-func TestReadToken(t *testing.T) {
+func TestNextToken(t *testing.T) {
 	var err error
 	lex := stringLexer("1 ( 2.52 (=) fifty defun) 312 4")
 	expected := []Token {
@@ -63,7 +63,7 @@ func TestReadToken(t *testing.T) {
 	tokens := []Token {}
 	for err == nil {
 		var tok Token
-		tok, err = lex.ReadToken()
+		tok, err = lex.NextToken()
 		if err != nil {
 			if err.Error() != "EOF" {
 				t.Error(err.Error())
