@@ -51,14 +51,14 @@ func TestLexNumber(t *testing.T) {
 
 func TestNextToken(t *testing.T) {
 	var err error
-	lex := stringLexer("1 ( 2.52 (=) fifty defun) 312 4")
+	lex := stringLexer("1 ( 2.52 (=) fifty defun) 312 + 4 * .")
 	expected := []Token {
 		NumLit(1.0),
 		Delimeter(OpenParen),
 		NumLit(2.52),
 		Delimeter(OpenParen), Delimeter(Equals), Delimeter(CloseParen),
 		Identifier{ sym: lex.st.Intern("fifty")}, Reserved(Defun), Delimeter(CloseParen),
-		NumLit(312.0), NumLit(4),
+		NumLit(312.0), Operator(Add), NumLit(4), Operator(Mul), Operator(Dot),
 	}
 	tokens := []Token {}
 	for err == nil {

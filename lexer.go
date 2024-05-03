@@ -2,6 +2,8 @@ package main
 
 import "io"
 import "fmt"
+import "errors"
+import "bufio"
 import "strconv"
 import "unicode"
 import "strings"
@@ -48,10 +50,14 @@ func (i *InvalidCharacter) Error() string {
 
 type Token interface {
 	Source() (int, int) // row, col
+	ParsePrefix(*Parser) (Ast, error)
+	ParseInfix(Ast, *Parser) (Ast, error)
+	Precedence() int
 }
 
 type Delimeter int
 type Reserved int
+type Operator int
 type Identifier struct {
 	sym Symbol
 }
@@ -86,6 +92,14 @@ const (
 	Equals
 )
 
+const (
+	Add Operator = iota
+	Sub
+	Mul
+	Div
+	Dot
+)
+
 
 // todo
 func (token Reserved) Source() (int, int) {
@@ -102,6 +116,13 @@ func (token StringLit) Source() (int, int) {
 }
 func (token NumLit) Source() (int, int) {
 	return 0, 0
+}
+func (token Operator) Source() (int, int) {
+	return 0, 0
+}
+
+func IsEof(err error) bool {
+	return errors.Is(err, bufio.ErrFinalToken) || errors.Is(err, io.EOF)
 }
 
 type Lexer struct {
@@ -173,7 +194,7 @@ func (lex *Lexer) NextToken() (Token, error) {
 	return t, lex.err
 }
 
-/// Returns nil, bufio.ErrFinalToken on end of input
+/// Returns nil, bufio.ErrFinalToken on end of input. or io.Eof. I can't tell.
 func (lex *Lexer) readToken() (Token, error) {
 	r, err := lex.PeekRune()
 	if err != nil { goto readErr }
@@ -202,6 +223,21 @@ func (lex *Lexer) readToken() (Token, error) {
 	case r == ']':
 		_, _ = lex.ReadRune()
 		return CloseBracket, nil
+	case r == '+':
+		_, _ = lex.ReadRune()
+		return Add, nil
+	case r == '-':
+		_, _ = lex.ReadRune()
+		return Sub, nil
+	case r == '*':
+		_, _ = lex.ReadRune()
+		return Mul, nil
+	case r == '/':
+		_, _ = lex.ReadRune()
+		return Div, nil
+	case r == '.':
+		_, _ = lex.ReadRune()
+		return Dot, nil
 	case isNumberStartChar(r):
 		return lex.lexNumber()
 	case isIdentChar(r):
