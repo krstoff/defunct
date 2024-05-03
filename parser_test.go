@@ -1,7 +1,7 @@
 package main
 
 import "testing"
-// import "reflect"
+import "reflect"
 
 func TestParseLiterals(t *testing.T) {
 	lex := stringLexer("500")
@@ -18,33 +18,33 @@ func TestParseLiterals(t *testing.T) {
 	}
 }
 
-// func TestBinOperators(t *testing.T) {
-// 	lex := stringLexer("1 * 2 + 3 / 4 - 5")
-// 	parser := NewParser(lex)
-// 	ast, err := parser.expression(0)
-// 	if err != nil {
-// 		t.Error(err.Error())
-// 	}
-// 	expected := BinOpCall {
-// 		Op: Sub,
-// 		Left: BinOpCall {
-// 			Op: Add,
-// 			Left: BinOpCall {
-// 				Op: Mul,
-// 				Left: NumLit(1),
-// 				Right: NumLit(2),
-// 			},
-// 			Right: BinOpCall {
-// 				Op: Div,
-// 				Left: NumLit(3),
-// 				Right: NumLit(4),
-// 			},
-// 		},
-// 		Right: NumLit(5),
-// 	}
+func TestBinOperators(t *testing.T) {
+	lex := stringLexer("1 * 2 + 3 / 4 - 5")
+	parser := NewParser(lex)
+	ast, err := parser.expression(0)
+	if err != nil {
+		t.Error(err.Error())
+	}
+	expected := BinOpCall {
+		Op: Sub,
+		Left: BinOpCall {
+			Op: Add,
+			Left: BinOpCall {
+				Op: Mul,
+				Left: NumLit(1),
+				Right: NumLit(2),
+			},
+			Right: BinOpCall {
+				Op: Div,
+				Left: NumLit(3),
+				Right: NumLit(4),
+			},
+		},
+		Right: NumLit(5),
+	}
 
 	
-// 	if !reflect.DeepEqual(expected, ast) {
-// 		t.Errorf("Did not parse the tree that was expected. %#v", ast)
-// 	}
-// }
+	if !reflect.DeepEqual(expected, ast) {
+		t.Errorf("Did not parse the tree that was expected. %#v", ast)
+	}
+}

@@ -35,11 +35,14 @@ func (p *Parser) expression(prec int) (Ast, error) {
 		return expr, nil
 	}
 	if err != nil { return nil, err }
-	
+
 	for token.Precedence() > prec {
-		if err != nil { return nil, err }
 		expr, err = token.ParseInfix(expr, p)
 		token, err = lex.PeekToken()
+		if err != nil { 
+			if IsEof(err) { err = nil }
+			break
+		}
 	}
 	return expr, err
 }
@@ -76,6 +79,7 @@ func (token StringLit) ParseInfix(left Ast, parser *Parser) (Ast, error) {
 	return nil, fmt.Errorf("ParseInfix: Expected an infix operator, found a string literal %s", token)
 }
 func (token Operator) ParseInfix(left Ast, parser *Parser) (Ast, error) {
+	_, _ = parser.lex.NextToken()
 	right, err := parser.expression(token.Precedence())
 	return BinOpCall {
 		Op: token,
