@@ -6,7 +6,7 @@ import "reflect"
 func TestParseLiterals(t *testing.T) {
 	lex := stringLexer("500")
 	parser := NewParser(lex)
-	ast, err := parser.expression(0)
+	ast, err := parser.Expression()
 	if err != nil {
 		t.Error(err.Error()); return
 		
@@ -21,7 +21,7 @@ func TestParseLiterals(t *testing.T) {
 func TestBinOperators(t *testing.T) {
 	lex := stringLexer("1 * 2 + 3 / 4 - 5")
 	parser := NewParser(lex)
-	ast, err := parser.expression(0)
+	ast, err := parser.Expression()
 	if err != nil {
 		t.Error(err.Error())
 	}
@@ -48,3 +48,48 @@ func TestBinOperators(t *testing.T) {
 		t.Errorf("Did not parse the tree that was expected. %#v", ast)
 	}
 }
+
+func TestFunctionCalls(t *testing.T) {
+	lex := stringLexer("halt() free(address) power(2, 3)")
+	parser := NewParser(lex)
+	ast1, err1 := parser.Expression()
+	ast2, err2 := parser.Expression()
+	ast3, err3 := parser.Expression()
+
+	if err1 != nil {
+		t.Errorf("Failed to parse function call. %s", err1.Error()); return
+	}
+	if err2 != nil {
+		t.Errorf("Failed to parse function call. %s", err2.Error()); return 
+	}
+	if err3 != nil {
+		t.Errorf("Failed to parse function call. %s", err3.Error()); return
+	}
+
+	expected1 := FunCall {
+		Name: Identifier { sym: lex.st.Intern("halt") },
+		Args: []Ast {},
+	}
+
+	expected2 := FunCall {
+		Name: Identifier { sym: lex.st.Intern("free") },
+		Args: []Ast {Identifier{sym: lex.st.Intern("address")}},
+	}
+
+	expected3 := FunCall {
+		Name: Identifier { sym: lex.st.Intern("power") },
+		Args: []Ast {NumLit(2), NumLit(3)},
+	}
+	
+	if !reflect.DeepEqual(expected1, ast1) {
+		t.Errorf("Did not parse the tree that was expected. %#v", ast1)
+	}
+	if !reflect.DeepEqual(expected2, ast2) {
+		t.Errorf("Did not parse the tree that was expected. %#v", ast2)
+	}
+	if !reflect.DeepEqual(expected3, ast3) {
+		t.Errorf("Did not parse the tree that was expected. %#v", ast3)
+	}
+}
+
+

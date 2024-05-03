@@ -90,6 +90,7 @@ const (
 	OpenBracket
 	CloseBracket
 	Equals
+	Comma
 )
 
 const (
@@ -223,6 +224,9 @@ func (lex *Lexer) readToken() (Token, error) {
 	case r == ']':
 		_, _ = lex.ReadRune()
 		return CloseBracket, nil
+	case r == ',':
+		_, _ = lex.ReadRune()
+		return Comma, nil
 	case r == '+':
 		_, _ = lex.ReadRune()
 		return Add, nil

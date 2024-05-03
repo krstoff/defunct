@@ -12,11 +12,19 @@ type BinOpCall struct {
 	Left Ast
 	Right Ast
 }
+type FunCall struct {
+	Name Ast
+	Args []Ast
+}
 
 func NewParser(lex *Lexer) Parser {
 	var p Parser
 	p.lex = lex
 	return p
+}
+
+func (p *Parser) Expression() (Ast, error) {
+	return p.expression(0)
 }
 
 func (p *Parser) expression(prec int) (Ast, error) {
@@ -38,6 +46,7 @@ func (p *Parser) expression(prec int) (Ast, error) {
 
 	for token.Precedence() > prec {
 		expr, err = token.ParseInfix(expr, p)
+		if err != nil && !IsEof(err) { return nil, err }
 		token, err = lex.PeekToken()
 		if err != nil { 
 			if IsEof(err) { err = nil }
@@ -70,7 +79,11 @@ func (token Reserved) ParseInfix(left Ast, parser *Parser) (Ast, error) {
 	return nil, fmt.Errorf("ParseInfix: Expected an infix operator, found a reserved word %v", token)
 }
 func (token Delimeter) ParseInfix(left Ast, parser *Parser) (Ast, error) {
-	return nil, nil
+	switch token {
+	case OpenParen:
+		return parser.functionCall(left)
+	}
+	return nil, fmt.Errorf("ParseInfix: Expected an infix operator, found %v", token)
 }
 func (token Identifier) ParseInfix(left Ast, parser *Parser) (Ast, error) {
 	return nil, fmt.Errorf("ParseInfix: Expected an infix operator, found an identifier %v", token)
@@ -113,4 +126,34 @@ func (token Operator) Precedence() int {
 }
 func (token NumLit) Precedence() int {
 	return 0
+}
+
+func (p *Parser) functionCall(left Ast) (Ast, error) {
+	args := make([]Ast, 0)
+	_, _ = p.lex.NextToken() // '('
+
+	for next, err := p.lex.PeekToken(); next != CloseParen; next, err = p.lex.PeekToken() {
+		if err != nil {
+			return nil, err
+		}
+		if len(args) >= 1 {
+			tok, err := p.lex.NextToken()
+			if err != nil {
+				return nil, err
+			}
+			if tok != Comma {
+				return nil, fmt.Errorf("Expected ',', found %v", tok)
+			}
+		}
+		arg, err := p.Expression()
+		if err != nil {
+			return nil, err
+		}
+		args = append(args, arg)
+	}
+	_, _ = p.lex.NextToken() // ')'
+	return FunCall {
+		Name: left,
+		Args: args,
+	}, nil
 }
