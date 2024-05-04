@@ -23,6 +23,18 @@ func NewParser(lex *Lexer) Parser {
 	return p
 }
 
+func expect[T comparable](t T, p *Parser) (T, error) {
+	tok, err := p.lex.NextToken()
+	if err != nil {
+		return t, fmt.Errorf("Expected %v, errored: %s", t, err.Error())
+	}
+	value, ok := tok.(T)
+	if !ok || value != t {
+		return t, fmt.Errorf("Expected %v, but found %T %v", t, tok, tok)
+	}
+	return t, nil
+}
+
 func (p *Parser) Expression() (Ast, error) {
 	return p.expression(0)
 }
@@ -46,7 +58,7 @@ func (p *Parser) expression(prec int) (Ast, error) {
 
 	for token.Precedence() > prec {
 		expr, err = token.ParseInfix(expr, p)
-		if err != nil && !IsEof(err) { return nil, err }
+		if err != nil { return nil, err }
 		token, err = lex.PeekToken()
 		if err != nil { 
 			if IsEof(err) { err = nil }
@@ -141,6 +153,7 @@ func (token NumLit) Precedence() int {
 }
 
 func (p *Parser) functionCall(left Ast) (Ast, error) {
+	var err error
 	args := make([]Ast, 0)
 	_, _ = p.lex.NextToken() // '('
 
@@ -163,9 +176,12 @@ func (p *Parser) functionCall(left Ast) (Ast, error) {
 		}
 		args = append(args, arg)
 	}
-	_, _ = p.lex.NextToken() // ')'
+	_, err = p.lex.NextToken() // ')'
+	if err != nil {
+		err = fmt.Errorf("Expected ')', errored with: %s", err.Error())
+	}
 	return FunCall {
 		Name: left,
 		Args: args,
-	}, nil
+	}, err
 }
