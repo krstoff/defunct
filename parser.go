@@ -57,10 +57,10 @@ func (p *Parser) expression(prec int) (Ast, error) {
 }
 
 func (token Reserved) ParsePrefix(parser *Parser) (Ast, error) {
-	return nil, nil
+	return nil, fmt.Errorf("ParsePrefix: Expected a prefix operator, found %v", token)
 }
-func (token Delimeter) ParsePrefix(parser *Parser) (Ast, error) {
-	return nil, nil
+func (token Operator) ParsePrefix(parser *Parser) (Ast, error) {
+	return nil, fmt.Errorf("ParsePrefix: Expected a prefix operator, found %v", token)
 }
 func (token Identifier) ParsePrefix(parser *Parser) (Ast, error) {
 	return parser.lex.NextToken()
@@ -68,8 +68,20 @@ func (token Identifier) ParsePrefix(parser *Parser) (Ast, error) {
 func (token StringLit) ParsePrefix(parser *Parser) (Ast, error) {
 	return parser.lex.NextToken()
 }
-func (token Operator) ParsePrefix(parser *Parser) (Ast, error) {
-	return nil, nil
+func (token Delimeter) ParsePrefix(parser *Parser) (Ast, error) {
+	switch token {
+	case OpenParen:
+		_, _ = parser.lex.NextToken()
+		exp, err := parser.expression(0)
+		if err != nil { return nil, err }
+		tok, err := parser.lex.NextToken()
+		if err != nil { return nil, err }
+		if tok != CloseParen {
+			return nil, fmt.Errorf("ParsePrefix: Expected a closing parentheses, found %v", token)
+		}
+		return exp, nil
+	}
+	return nil, fmt.Errorf("ParsePrefix: Expected a prefix operator, found %v", token)
 }
 func (token NumLit) ParsePrefix(parser *Parser) (Ast, error) {
 	return parser.lex.NextToken()

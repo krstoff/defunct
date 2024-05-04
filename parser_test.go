@@ -43,14 +43,13 @@ func TestBinOperators(t *testing.T) {
 		Right: NumLit(5),
 	}
 
-	
 	if !reflect.DeepEqual(expected, ast) {
 		t.Errorf("Did not parse the tree that was expected. %#v", ast)
 	}
 }
 
 func TestFunctionCalls(t *testing.T) {
-	lex := stringLexer("halt() free(address) power(2, 3)")
+	lex := stringLexer("halt() free(address) list(2, 3, 4, 5)")
 	parser := NewParser(lex)
 	ast1, err1 := parser.Expression()
 	ast2, err2 := parser.Expression()
@@ -77,8 +76,8 @@ func TestFunctionCalls(t *testing.T) {
 	}
 
 	expected3 := FunCall {
-		Name: Identifier { sym: lex.st.Intern("power") },
-		Args: []Ast {NumLit(2), NumLit(3)},
+		Name: Identifier { sym: lex.st.Intern("list") },
+		Args: []Ast {NumLit(2), NumLit(3), NumLit(4), NumLit(5)},
 	}
 	
 	if !reflect.DeepEqual(expected1, ast1) {
@@ -92,4 +91,33 @@ func TestFunctionCalls(t *testing.T) {
 	}
 }
 
+func TestParens(t *testing.T) {
+	lex := stringLexer("1 * (2 + 3) * free(willie)")
+	parser := NewParser(lex)
+	ast, err := parser.Expression()
+	if err != nil {
+		t.Error(err.Error())
+		return
+	}
 
+	expected := BinOpCall {
+		Op: Mul,
+		Left: BinOpCall {
+			Op: Mul,
+			Left: NumLit(1),
+			Right: BinOpCall {
+				Op: Add,
+				Left: NumLit(2),
+				Right: NumLit(3),
+			},
+		},
+		Right: FunCall {
+			Name: Identifier { sym: lex.st.Intern("free") },
+			Args: []Ast {Identifier{sym: lex.st.Intern("willie")}},
+		},
+	}
+
+	if !reflect.DeepEqual(expected, ast) {
+		t.Errorf("Did not parse the tree that was expected. %#v", ast)
+	}
+}
