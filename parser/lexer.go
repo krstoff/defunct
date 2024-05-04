@@ -1,4 +1,4 @@
-package main
+package parser
 
 import "io"
 import "fmt"
@@ -7,6 +7,8 @@ import "bufio"
 import "strconv"
 import "unicode"
 import "strings"
+
+import . "defunct/symbols"
 
 type Runes struct {
 	peeked rune
