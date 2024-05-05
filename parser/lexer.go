@@ -55,6 +55,7 @@ type Token interface {
 	ParsePrefix(*Parser) (Ast, error)
 	ParseInfix(Ast, *Parser) (Ast, error)
 	Precedence() int
+	PPrint(indent int, w io.Writer)
 }
 
 type Delimeter int
@@ -333,5 +334,62 @@ func (lex *Lexer) lexIdentOrReserved() (Token, error) {
 		i := Identifier { sym: lex.st.Intern(ident) }
 		lex.semicolonOk = true
 		return i, nil
+	}
+}
+
+const indent_width int = 2
+
+func (token Reserved) PPrint(indent int, w io.Writer) {
+	tab := strings.Repeat(" ", indent * indent_width)
+	switch token {
+	case Defun: fmt.Fprintf(w, "%sdefun", tab)
+	case End: fmt.Fprintf(w, "%send", tab)
+	case Return: fmt.Fprintf(w, "%sreturn", tab)
+	case Let: fmt.Fprintf(w, "%slet", tab)
+	case If: fmt.Fprintf(w, "%sif", tab)
+	case Then: fmt.Fprintf(w, "%sthen", tab)
+	case Else: fmt.Fprintf(w, "%selse", tab)
+	default: panic("Tried to pretty print something not printable.")
+	}
+}
+
+func (token Delimeter) PPrint(indent int, w io.Writer) {
+	tab := strings.Repeat(" ", indent * indent_width)
+	fmt.Fprint(w, tab)
+	switch token {
+	case OpenParen: fmt.Fprintf(w, "%s(", tab)
+	case CloseParen: fmt.Fprintf(w, "%s)", tab)
+	case OpenBracket: fmt.Fprintf(w, "%s[", tab)
+	case CloseBracket: fmt.Fprintf(w, "%s]", tab)
+	case Equals: fmt.Fprintf(w, "%s=", tab)
+	case Comma: fmt.Fprintf(w, "%s,", tab) 
+	case Semicolon: fmt.Fprint(w, ";", tab)
+	default: panic("Tried to pretty print something not printable.")
+	}
+}
+func (token Identifier) PPrint(indent int, w io.Writer) {
+	tab := strings.Repeat(" ", indent * indent_width)
+	fmt.Fprint(w, tab)
+	fmt.Fprintf(w, ":" + token.sym.Name)
+}
+func (token StringLit) PPrint(indent int, w io.Writer) {
+	tab := strings.Repeat(" ", indent * indent_width)
+	fmt.Fprint(w, tab)
+	fmt.Fprintf(w, "\"" + string(token) + "\"")
+}
+func (token NumLit) PPrint(indent int, w io.Writer) {
+	tab := strings.Repeat(" ", indent * indent_width)
+	fmt.Fprint(w, tab)
+	fmt.Fprintf(w, "%d", int(token))
+}
+func (token Operator) PPrint(indent int, w io.Writer) {
+	tab := strings.Repeat(" ", indent * indent_width)
+	fmt.Fprint(w, tab)
+	switch token {
+	case Add: fmt.Fprint(w, "+")
+	case Sub: fmt.Fprint(w, "-")
+	case Mul: fmt.Fprint(w, "*")
+	case Div: fmt.Fprint(w, "/")
+	default: panic("Tried to pretty print something not printable.")
 	}
 }

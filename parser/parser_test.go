@@ -2,6 +2,9 @@ package parser
 
 import "testing"
 import "reflect"
+import "os"
+import "strings"
+import "bufio"
 
 func TestParseLiterals(t *testing.T) {
 	lex := stringLexer("500")
@@ -122,6 +125,48 @@ func TestParens(t *testing.T) {
 	}
 }
 
-func TestFunctions(_ *testing.T) {
+func TestFunctions(t *testing.T) {
+	// defun doubleAdd(x, y) =
+	//   let sum = x + y
+	//   (2 * sum)
+	// end
+	file, err := os.Open("../samples/fib.fun")
+	if err != nil {
+		t.Errorf("Could not open sample file: %s", err.Error())
+		return
+	}
+	defer file.Close()
+	lexer := NewLexer(bufio.NewReader(file), nil)
+	parser := NewParser(lexer)
+	ast, err := parser.Definition()
+	if err != nil {
+		t.Errorf("Could not parse definition: %s", err.Error())
+	}
 
+	expected := FunDef {
+		Name: Identifier { sym: lexer.st.Intern("doubleAdd") },
+		Args: []Ast { Identifier { sym: lexer.st.Intern("x") }, Identifier { sym: lexer.st.Intern("y") } },
+		Body: []Ast {
+			LetStmt {
+				Ident: Identifier { sym: lexer.st.Intern("sum") },
+				Expr: BinOpCall {
+					Op: Add, 
+					Left: Identifier { sym: lexer.st.Intern("x") }, 
+					Right: Identifier { sym: lexer.st.Intern("y") },
+				},
+			},
+			BinOpCall {
+				Op: Mul,
+				Left: NumLit(2),
+				Right: Identifier { sym: lexer.st.Intern("sum") },
+			},
+		},
+	}
+
+	if !reflect.DeepEqual(expected, ast) {
+		t.Error("Did not parse the tree that was expected.\n")
+		var w strings.Builder
+		ast.PPrint(0, &w)
+		t.Error(w.String())
+	}
 }

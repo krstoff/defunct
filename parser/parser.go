@@ -1,12 +1,16 @@
 package parser
 import "fmt"
+import "strings"
+import "io"
 
 type Parser struct {
 	lex *Lexer
 	err error
 }
 
-type Ast interface {}
+type Ast interface {
+	PPrint(indent int, builder io.Writer)
+}
 type BinOpCall struct {
 	Op Operator
 	Left Ast
@@ -15,6 +19,18 @@ type BinOpCall struct {
 type FunCall struct {
 	Name Ast
 	Args []Ast
+}
+type LetStmt struct {
+	Ident Identifier
+	Expr Ast
+}
+type ReturnStmt struct {
+	Expr Ast
+}
+type FunDef struct {
+	Name Identifier
+	Args []Ast
+	Body []Ast
 }
 
 func NewParser(lex *Lexer) Parser {
@@ -26,7 +42,7 @@ func NewParser(lex *Lexer) Parser {
 func expect[T comparable](t T, p *Parser) (T, error) {
 	tok, err := p.lex.NextToken()
 	if err != nil {
-		return t, fmt.Errorf("Expected %v, errored: %s", t, err.Error())
+		return t, fmt.Errorf("Expected %v, errored: %s", tok, err.Error())
 	}
 	value, ok := tok.(T)
 	if !ok || value != t {
@@ -35,8 +51,67 @@ func expect[T comparable](t T, p *Parser) (T, error) {
 	return t, nil
 }
 
+func require[T comparable](_ T, p *Parser) (T, error) {
+	var value T
+	tok, err := p.lex.NextToken()
+	if err != nil {
+		return value, fmt.Errorf("Expected %v, errored: %s", tok, err.Error())
+	}
+	value, ok := tok.(T)
+	if !ok  {
+		return value, fmt.Errorf("Expected %v, but found %T %v", tok, tok, tok)
+	}
+	return value, nil
+}
+
+func trimSemicolon(p *Parser) {
+	tok, err := p.lex.PeekToken()
+	if err != nil { return }
+	value, ok := tok.(Delimeter)
+	if ok && value == Semicolon {
+		_, _ = p.lex.NextToken()
+	}
+}
+
 func (p *Parser) Expression() (Ast, error) {
 	return p.expression(0)
+}
+
+func (p *Parser) Definition() (Ast, error) {
+	tok, err := p.lex.PeekToken()
+	if err != nil {
+		return nil, err
+	}
+	switch tok {
+	case Defun:
+		return p.parseDefun()
+	}
+	return nil, fmt.Errorf("Expected a definition, found %T %v", tok, tok)
+}
+
+// may return a single semicolon. callers need to prune no-op statements
+func (p *Parser) Statement() (Ast, error) {
+	tok, err := p.lex.PeekToken()
+	if err != nil {
+		return nil, err
+	}
+	if keyword, ok := tok.(Reserved); ok {
+		switch keyword {
+		case Let:
+			return p.parseLet()
+		case Return:
+			return p.parseReturn()
+		case End:
+			return nil, fmt.Errorf("Expected a statement but found keyword end. Empty bodies are not allowed.")
+		}
+	}
+	if delimeter, ok := tok.(Delimeter); ok && delimeter == Semicolon {
+		_, _ = p.lex.NextToken()
+		return delimeter, nil
+	}
+	expr, err := p.Expression()
+
+	return expr, err
 }
 
 func (p *Parser) expression(prec int) (Ast, error) {
@@ -184,4 +259,148 @@ func (p *Parser) functionCall(left Ast) (Ast, error) {
 		Name: left,
 		Args: args,
 	}, err
+}
+
+func (p *Parser) parseLet() (Ast, error) {
+	_, err := expect(Let, p)
+	if err != nil { return nil, err }
+
+	var ident Identifier
+	ident, err = require(ident, p)
+	if err != nil { return nil, err }
+
+	_, err = expect(Equals, p)
+	if err != nil { return nil, err }
+
+	expr, err := p.Expression()
+	if err != nil { return nil, err }
+
+	trimSemicolon(p)
+	return LetStmt {
+		Ident: ident,
+		Expr: expr,
+	}, nil
+}
+
+func (p *Parser) parseReturn() (Ast, error) {
+	_, err := expect(Return, p)
+	expr, err := p.Statement()
+	if err != nil {
+		return nil, err
+	}
+	return ReturnStmt { Expr: expr }, nil
+}
+
+func (p *Parser) parseDefun() (Ast, error) {
+	_, err := expect(Defun, p)
+	var name Identifier
+	name, err = require(name, p)
+	if err != nil {
+		return nil, fmt.Errorf("parseDefun: %w", err)
+	}
+	_, err = expect(OpenParen, p)
+	if err != nil {
+		return nil, fmt.Errorf("parseDefun: %w", err)
+	}
+
+	nextToken, err := p.lex.PeekToken()
+	if err != nil {
+		return nil, fmt.Errorf("parseDefun: %w", err)
+	}
+
+	args := make([]Ast, 0)
+
+	for nextToken != CloseParen {
+		if len(args) >= 1 {
+			_, err = expect(Comma, p)
+			if err != nil { return nil, err }
+		}
+		var ident Identifier
+		ident, err := require(ident, p)
+		if err != nil { return nil, err }
+		args = append(args, ident)
+		nextToken, err = p.lex.PeekToken()
+		if err != nil { return nil, err }
+	}
+
+	_, err = expect(CloseParen, p)
+	_, err = expect(Equals, p)
+	if err != nil { return nil, err }
+
+	nextToken, err = p.lex.PeekToken()
+	if err != nil {
+		return nil, fmt.Errorf("parseDefun: %w", err)
+	}
+
+	body := make([]Ast, 0)
+
+	for nextToken != End {
+		stmt, err := p.Statement()
+		if err != nil { return nil, err }
+		if stmt != Semicolon {
+			body = append(body, stmt)
+		}
+		nextToken, err = p.lex.PeekToken()
+		if err != nil { return nil, err }
+	}
+
+	_, err = expect(End, p)
+	
+	return FunDef {
+		Name: name,
+		Args: args,
+		Body: body,
+	}, nil
+}
+
+func (bop BinOpCall) PPrint(indent int, b io.Writer) {
+	tab := strings.Repeat(" ", indent * indent_width)
+	fmt.Fprintf(b, "%sOp", tab)
+	bop.Op.PPrint(0, b)
+	fmt.Fprint(b, "\n")
+	bop.Left.PPrint(indent + 1, b)
+	fmt.Fprint(b, "\n")
+	bop.Right.PPrint(indent + 1, b)
+
+}
+func (fc FunCall) PPrint(indent int, b io.Writer) {
+	tab := strings.Repeat(" ", indent * indent_width)
+	fmt.Fprintf(b, "%sCall", tab)
+	fc.Name.PPrint(0, b)
+	for _, arg := range fc.Args {
+		fmt.Fprint(b, "\n")
+		arg.PPrint(indent + 1, b)
+	}
+}
+func (ls LetStmt) PPrint(indent int, b io.Writer) {
+	tab := strings.Repeat(" ", indent * indent_width)
+	fmt.Fprintf(b, "%sLet ", tab)
+	ls.Ident.PPrint(0, b)
+	fmt.Fprint(b, "\n")
+	ls.Expr.PPrint(indent + 1, b)
+}
+func (rs ReturnStmt) PPrint(indent int, b io.Writer) {
+	tab := strings.Repeat(" ", indent * indent_width)
+	fmt.Fprintf(b, "%sReturn\n", tab)
+	rs.Expr.PPrint(indent + 1, b)
+	
+}
+func (fd FunDef) PPrint(indent int, b io.Writer) {
+	fmt.Fprint(b, "\n")
+	tab := strings.Repeat(" ", indent * indent_width)
+	tab2 := strings.Repeat(" ", (indent + 1) * indent_width)
+	fmt.Fprintf(b, "%sFunDef", tab)
+	fd.Name.PPrint(0, b)
+	fmt.Fprintf(b, "\n%s(", tab2)
+	for i, arg := range fd.Args {
+		if i > 0 {
+			fmt.Fprintf(b, ", ")
+		}
+		arg.PPrint(0, b)
+	}
+	fmt.Fprintf(b, ")\n")
+	for _, stmt := range fd.Body {
+		stmt.PPrint(indent + 1, b)
+		fmt.Fprint(b, "\n")
+	}
 }
