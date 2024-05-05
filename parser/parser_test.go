@@ -121,3 +121,7 @@ func TestParens(t *testing.T) {
 		t.Errorf("Did not parse the tree that was expected. %#v", ast)
 	}
 }
+
+func TestFunctions(_ *testing.T) {
+
+}

@@ -93,6 +93,7 @@ const (
 	CloseBracket
 	Equals
 	Comma
+	Semicolon
 )
 
 const (
@@ -135,6 +136,7 @@ type Lexer struct {
 	src string
 	peeked Token
 	err error
+	semicolonOk bool
 }
 
 func NewLexer(r io.RuneReader, st *SymbolTable) *Lexer {
@@ -204,6 +206,11 @@ func (lex *Lexer) readToken() (Token, error) {
 
 	// trim whitespace
 	for isWhitespace(r) {
+		if r == '\n' && lex.semicolonOk {
+			_, err = lex.ReadRune()
+			lex.semicolonOk = false
+			return Semicolon, nil
+		}
 		_, err = lex.ReadRune()
 		if err != nil { goto readErr }
 		r, err = lex.PeekRune()
@@ -211,11 +218,15 @@ func (lex *Lexer) readToken() (Token, error) {
 
 	r, err = lex.PeekRune()
 	switch {
+	case r == ';':
+		_, _ = lex.ReadRune()
+		return Semicolon, nil
 	case r == '(':
 		_, _ = lex.ReadRune()
 		return OpenParen, nil
     case r == ')':
 		_, _ = lex.ReadRune()
+		lex.semicolonOk = true
 		return CloseParen, nil
 	case r == '=':
 		_, _ = lex.ReadRune()
@@ -224,6 +235,7 @@ func (lex *Lexer) readToken() (Token, error) {
 		_, _ = lex.ReadRune()
 		return OpenBracket, nil
 	case r == ']':
+		lex.semicolonOk = true
 		_, _ = lex.ReadRune()
 		return CloseBracket, nil
 	case r == ',':
@@ -271,6 +283,7 @@ func isIdentChar(c rune) bool {
 }
 
 func (lex *Lexer) lexNumber() (Token, error) {
+	lex.semicolonOk = true
 	var c rune
 	var err error
 	digits := ""
@@ -312,9 +325,13 @@ func (lex *Lexer) lexIdentOrReserved() (Token, error) {
 
 	key, ok := keywords[ident]
 	if ok {
+		if key == Return {
+			lex.semicolonOk = true
+		}
 		return key, nil
 	} else {
 		i := Identifier { sym: lex.st.Intern(ident) }
+		lex.semicolonOk = true
 		return i, nil
 	}
 }
