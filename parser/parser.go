@@ -38,6 +38,9 @@ type FunDef struct {
 	Args []Ast
 	Body []Ast
 }
+type Module struct {
+	Defs []FunDef
+}
 
 func NewParser(lex *Lexer) Parser {
 	var p Parser
@@ -78,6 +81,24 @@ func trimSemicolon(p *Parser) {
 	value, ok := tok.(Delimeter)
 	if ok && value == Semicolon {
 		_, _ = p.lex.NextToken()
+	}
+}
+
+func (p *Parser) Module() (Ast, error) {
+	var err error
+	var def Ast
+	defs := make([]FunDef, 0)
+	for err != nil {
+		def, err = p.Definition()
+		d, _ := def.(FunDef)
+		defs = append(defs, d)
+	}
+	if IsEof(err) {
+		return Module {
+			Defs: defs,
+		}, nil
+	} else {
+		return nil, err
 	}
 }
 
@@ -499,4 +520,11 @@ func (bs BlockStmt) PPrint(indent int, b io.Writer) {
 }
 func (es ExprStmt) PPrint(ident int, b io.Writer) {
 	es.Expr.PPrint(ident, b)
+}
+
+func (m Module) PPrint(ident int, b io.Writer) {
+	for _, d := range m.Defs {
+		d.PPrint(ident, b)
+		fmt.Fprintf(b, "\n")
+	}
 }

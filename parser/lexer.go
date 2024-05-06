@@ -65,6 +65,9 @@ type Operator int
 type Identifier struct {
 	sym Symbol
 }
+func (i *Identifier) Name() string {
+	return i.sym.Name
+}
 type StringLit string
 type NumLit float64
 

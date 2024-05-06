@@ -159,10 +159,12 @@ func TestFunctions(t *testing.T) {
 					Right: Identifier{sym: lexer.st.Intern("y")},
 				},
 			},
-			BinOpCall{
-				Op:    Mul,
-				Left:  NumLit(2),
-				Right: Identifier{sym: lexer.st.Intern("sum")},
+			ReturnStmt{
+				Expr: BinOpCall{
+					Op:    Mul,
+					Left:  NumLit(2),
+					Right: Identifier{sym: lexer.st.Intern("sum")},
+				},
 			},
 		},
 	}

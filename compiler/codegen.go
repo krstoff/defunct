@@ -2,6 +2,8 @@ package compiler
 
 import p "defunct/parser"
 import "fmt"
+import "os"
+import "bufio"
 
 const (
 	ConstOp byte = iota
@@ -11,147 +13,202 @@ const (
 	DivOp
 	LoadOp
 	PopOp
+	CallOp
+	HaltOp
+	Ret0Op
+	Ret1Op
 )
+
+func Compile(file *os.File) (map[string]*Bytecode, error) {
+	lexer := p.NewLexer(bufio.NewReader(file), nil)
+	parser := p.NewParser(lexer)
+	definitions := make(map[string]*Bytecode)
+	var err error
+	var ast p.Ast
+	for err == nil {
+		ast, err = parser.Definition()
+		if fd, ok := ast.(p.FunDef); ok {
+			name := fd.Name.Name()
+			compiler := NewCompiler()
+			fd.Accept(compiler)
+			bytecode := compiler.Finish()
+			definitions[name] = &bytecode
+		}
+	}
+    if !p.IsEof(err) {
+		return nil, err
+	}
+	return definitions, nil
+} 
+
+type Compiler struct {
+	depth int
+	idents []LocalInfo
+	Name p.Identifier
+	Args int
+	Constants []Value
+	Bytes []byte
+}
 
 type LocalInfo struct {
 	name p.Identifier
 	depth int
 }
 
-type Locals struct {
-	depth int
-	idents []LocalInfo
+func (c *Compiler) EnterScope() {
+	c.depth += 1
 }
 
-func (l *Locals) EnterScope() {
-	l.depth += 1
-}
-
-func (l *Locals) ExitScope(e *Emitter) {
-	if l.depth == 0 { return }
-	l.depth -= 1
-	i := len(l.idents) - 1
-	for i >= 0 && l.idents[i].depth > l.depth {
+func (c *Compiler) ExitScope() {
+	if c.depth == 0 { return }
+	c.depth -= 1
+	i := len(c.idents) - 1
+	for i >= 0 && c.idents[i].depth > c.depth {
 		i--
-		e.Write(PopOp)
+		c.Write(PopOp)
 	}
-	l.idents = l.idents[:i + 1]
+	c.idents = c.idents[:i + 1]
 }
 
-func (l *Locals) Push(newLocal p.Identifier) {
-	if len(l.idents) == 255 {
+func (c *Compiler) PushLocal(newLocal p.Identifier) {
+	if len(c.idents) >= 255 {
 		panic("Max number of locals reached")
 	}
-	l.idents = append(l.idents, LocalInfo {
+	c.idents = append(c.idents, LocalInfo {
 		name: newLocal,
-		depth: l.depth,
+		depth: c.depth,
 	})
 }
 
-func (l *Locals) OffsetOf(newLocal p.Identifier) (int, bool) {
+func (c *Compiler) OffsetOf(newLocal p.Identifier) (int, bool) {
 	var offset int
-	for i := len(l.idents) - 1; i >= 0; i-- {
-		if l.idents[i].name == newLocal {
+	for i := len(c.idents) - 1; i >= 0; i-- {
+		if c.idents[i].name == newLocal {
 			return i, true
 		}
 	}
 	return offset, false
 }
 
-
-type Bytecode struct {
-	Constants []Value
-	Bytes []byte
+func NewCompiler() *Compiler {
+	c := new(Compiler)
+	c.idents = make([]LocalInfo, 0)
+	c.Constants = make([]Value, 0)
+	c.Bytes = make([]byte, 0)
+	return c
 }
 
-type Emitter struct {
-	Constants []Value
-	Bytes []byte
-	Locals Locals
+func (c *Compiler) Write(b byte) {
+	c.Bytes = append(c.Bytes, b)
 }
 
-func NewEmitter() *Emitter {
-	e := new(Emitter)
-	e.Locals = Locals {
-		depth: 0,
-		idents: make([]LocalInfo, 0),
-	}
-	return e
-}
-
-func (e *Emitter) Write(b byte) {
-	e.Bytes = append(e.Bytes, b)
-}
-
-func (e *Emitter) Done() Bytecode {
+func (c *Compiler) Finish() Bytecode {
 	return Bytecode {
-		Constants: e.Constants,
-		Bytes: e.Bytes,
+		Constants: c.Constants,
+		Bytes: c.Bytes,
+		Name: c.Name,
+		Args: c.Args,
 	}
 }
 
-func (e *Emitter) VisitReserved(_ p.Reserved) {
+func (c *Compiler) VisitReserved(_ p.Reserved) {
 }
-func (e *Emitter) VisitDelimeter(_ p.Delimeter) {
+func (c *Compiler) VisitDelimeter(_ p.Delimeter) {
 
 }
-func (e *Emitter) VisitIdentifier(ident p.Identifier) {
-	offset, ok := e.Locals.OffsetOf(ident)
+func (c *Compiler) VisitIdentifier(ident p.Identifier) {
+	offset, ok := c.OffsetOf(ident)
 	if !ok {
 		panic("variable used before declared")
 	}
-	e.Write(LoadOp)
-	e.Write(byte(offset))
+	c.Write(LoadOp)
+	c.Write(byte(offset))
 }
-func (e *Emitter) VisitStringLit(_ p.StringLit) {
+func (c *Compiler) VisitStringLit(_ p.StringLit) {
 
 }
-func (e *Emitter) VisitNumLit(nl p.NumLit) {
+func (c *Compiler) VisitNumLit(nl p.NumLit) {
 	n := float64(nl)
-	index := len(e.Constants)
-	e.Constants = append(e.Constants, n)
+	index := len(c.Constants)
+	c.Constants = append(c.Constants, n)
 	if index > 255 { panic("Maximum number of program literals reached.")}
-	e.Write(ConstOp)
-	e.Write(byte(index))
+	c.Write(ConstOp)
+	c.Write(byte(index))
 }
-func (e *Emitter) VisitOperator(op p.Operator) {
+func (c *Compiler) VisitOperator(op p.Operator) {
 	switch op {
-	case p.Add: e.Write(AddOp)
-	case p.Mul: e.Write(MulOp)
-	case p.Sub: e.Write(SubOp)
-	case p.Div: e.Write(DivOp)
+	case p.Add: c.Write(AddOp)
+	case p.Mul: c.Write(MulOp)
+	case p.Sub: c.Write(SubOp)
+	case p.Div: c.Write(DivOp)
 	default: panic("Unsupported")
 	}
 }
-func (e *Emitter) VisitBinOpCall(bop p.BinOpCall) {
-	bop.Left.Accept(e)
-	bop.Right.Accept(e)
-	bop.Op.Accept(e)
+func (c *Compiler) VisitBinOpCall(bop p.BinOpCall) {
+	bop.Left.Accept(c)
+	bop.Right.Accept(c)
+	bop.Op.Accept(c)
 }
-func (e *Emitter) VisitFunCall(_ p.FunCall) {
+func (c *Compiler) VisitFunCall(fc p.FunCall) {
+	numArgs := len(fc.Args)
+	for _, arg := range fc.Args {
+		arg.Accept(c)
+	}
+	fc.Name.Accept(c)
+	c.Write(CallOp)
+	c.Write(byte(numArgs))
+}
+func (c *Compiler) VisitLetStmt(ls p.LetStmt) {
+	ls.Expr.Accept(c)
+	c.PushLocal(ls.Ident)
+}
+func (c *Compiler) VisitReturnStmt(rs p.ReturnStmt) {
+	if rs.Expr == nil || rs.Expr == p.Semicolon {
+		c.Write(Ret0Op)
+	} else {
+		rs.Expr.Accept(c)
+		c.Write(Ret1Op)
+	}
+}
+func (c *Compiler) VisitFunDef(fd p.FunDef) {
+	c.Args = len(fd.Args)
+	c.Name = fd.Name
+	c.EnterScope()
+	for _, id := range fd.Args {
+		if id, ok := id.(p.Identifier); ok {
+			c.PushLocal(id)
+		} else { panic("Expected only identifiers in function definition") }
+	}
+	for _, stmt := range fd.Body {
+		stmt.Accept(c)
+	}
+	c.ExitScope()
+}
+func (c *Compiler) VisitModule(_ p.Module) {
+	// for def := range m.Defs {
+	// 	e2 := NewCompiler()
+	// 	placeholder := new(Bytecode)
+	// 	def.Accept(e2)
+	// 	*placeholder = e2.Done()
 
+	// 	index := len(e.Constants)
+	// 	e.Constants = append(e.Constants, placeholder)
+	// 	e.Write(ConstOp)
+	// 	e.Write(byte(index))
+	// 	e.Locals.Push(def.Name)
+	// }
 }
-func (e *Emitter) VisitLetStmt(ls p.LetStmt) {
-	ls.Expr.Accept(e)
-	e.Locals.Push(ls.Ident)
-}
-func (e *Emitter) VisitReturnStmt(_ p.ReturnStmt) {
-
-}
-func (e *Emitter) VisitFunDef(_ p.FunDef) {
-
-}
-func (e *Emitter) VisitBlockStmt(bs p.BlockStmt) {
-	e.Locals.EnterScope()
+func (c *Compiler) VisitBlockStmt(bs p.BlockStmt) {
+	c.EnterScope()
 	body := []p.Ast(bs)
 	for _, stmt := range body {
-		stmt.Accept(e)
+		stmt.Accept(c)
 	}
-	e.Locals.ExitScope(e)
+	c.ExitScope()
 }
-func (e *Emitter) VisitExprStmt(es p.ExprStmt) {
-	es.Expr.Accept(e)
-	e.Write(PopOp)
+func (c *Compiler) VisitExprStmt(es p.ExprStmt) {
+	es.Expr.Accept(c)
+	c.Write(PopOp)
 }
 
 func Disassemble(bytes []byte, constants []Value) string {
