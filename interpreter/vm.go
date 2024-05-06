@@ -1,7 +1,7 @@
 package interpreter
 
 import c "defunct/compiler"
-
+import "fmt"
 const maxStackSize = 65535
 
 type Vm struct { 
@@ -20,8 +20,10 @@ func (vm *Vm) Load(code c.Bytecode) {
 	vm.code = code
 }
 
+const debugStack = true
 func (vm *Vm) Run() {
 	for {
+		if debugStack { fmt.Println(vm.valueStack) }
 		if vm.ip >= len(vm.code.Bytes) { break }
 		switch vm.code.Bytes[vm.ip] {
 		case c.ConstOp: vm.constant()
@@ -30,6 +32,7 @@ func (vm *Vm) Run() {
 		case c.MulOp: vm.mul()
 		case c.DivOp: vm.div()
 		case c.LoadOp: vm.load()
+		case c.PopOp: _ = vm.pop()
 		}
 		vm.ip += 1
 	}

@@ -10,6 +10,7 @@ const (
 	SubOp
 	DivOp
 	LoadOp
+	PopOp
 )
 
 type LocalInfo struct {
@@ -26,14 +27,15 @@ func (l *Locals) EnterScope() {
 	l.depth += 1
 }
 
-func (l *Locals) ExitScope() {
+func (l *Locals) ExitScope(e *Emitter) {
 	if l.depth == 0 { return }
 	l.depth -= 1
-	for i := len(l.idents) - 1; i >= 0; i-- {
-		if l.idents[i].depth > l.depth {
-			l.idents = l.idents[:len(l.idents) - 1]
-		}
+	i := len(l.idents) - 1
+	for i >= 0 && l.idents[i].depth > l.depth {
+		i--
+		e.Write(PopOp)
 	}
+	l.idents = l.idents[:i + 1]
 }
 
 func (l *Locals) Push(newLocal p.Identifier) {
@@ -145,7 +147,7 @@ func (e *Emitter) VisitBlockStmt(bs p.BlockStmt) {
 	for _, stmt := range body {
 		stmt.Accept(e)
 	}
-	e.Locals.ExitScope()
+	e.Locals.ExitScope(e)
 }
 
 func Disassemble(bytes []byte, constants []Value) string {
@@ -168,6 +170,8 @@ func Disassemble(bytes []byte, constants []Value) string {
 			arg := bytes[i + 1]
 			i += 1
 			s = s + fmt.Sprintf("load $%v\n", arg)
+		case PopOp:
+			s = s + "pop\n"
 		default:
 			panic("Unknown opcode encountered.")
 		}
