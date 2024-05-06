@@ -4,9 +4,8 @@ import "testing"
 import "reflect"
 import "strings"
 
-
-func  TestRuneReader(t *testing.T) {
-    r := NewRunes(strings.NewReader("abcd"))
+func TestRuneReader(t *testing.T) {
+	r := NewRunes(strings.NewReader("abcd"))
 
 	c, _ := r.PeekRune()
 	if c != 'a' {
@@ -34,7 +33,7 @@ func TestLexNumber(t *testing.T) {
 		}
 		return float64(n)
 	}
-	lex := stringLexer("124.52")
+	lex := StringLexer("124.52")
 	tok, _ := lex.lexNumber()
 
 	n := getNumber(tok)
@@ -42,7 +41,7 @@ func TestLexNumber(t *testing.T) {
 		t.Errorf("Tried to parse 124.52, found %f instead", n)
 	}
 
-	lex = stringLexer("754furb")
+	lex = StringLexer("754furb")
 	_, err := lex.lexNumber()
 	if err == nil {
 		t.Error("Tried to parse 754furb, did not error")
@@ -51,16 +50,16 @@ func TestLexNumber(t *testing.T) {
 
 func TestNextToken(t *testing.T) {
 	var err error
-	lex := stringLexer("1 ( 2.52 (=) fifty defun) 312 + 4 * .")
-	expected := []Token {
+	lex := StringLexer("1 ( 2.52 (=) fifty defun) 312 + 4 * .")
+	expected := []Token{
 		NumLit(1.0),
 		Delimeter(OpenParen),
 		NumLit(2.52),
 		Delimeter(OpenParen), Delimeter(Equals), Delimeter(CloseParen),
-		Identifier{ sym: lex.st.Intern("fifty")}, Reserved(Defun), Delimeter(CloseParen),
+		Identifier{sym: lex.st.Intern("fifty")}, Reserved(Defun), Delimeter(CloseParen),
 		NumLit(312.0), Operator(Add), NumLit(4), Operator(Mul), Operator(Dot),
 	}
-	tokens := []Token {}
+	tokens := []Token{}
 	for err == nil {
 		var tok Token
 		tok, err = lex.NextToken()

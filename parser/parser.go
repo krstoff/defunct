@@ -1,4 +1,5 @@
 package parser
+
 import "fmt"
 import "strings"
 import "io"
@@ -10,10 +11,11 @@ type Parser struct {
 
 type Ast interface {
 	PPrint(indent int, builder io.Writer)
+	Accept(v Visitor)
 }
 type BinOpCall struct {
-	Op Operator
-	Left Ast
+	Op    Operator
+	Left  Ast
 	Right Ast
 }
 type FunCall struct {
@@ -22,7 +24,7 @@ type FunCall struct {
 }
 type LetStmt struct {
 	Ident Identifier
-	Expr Ast
+	Expr  Ast
 }
 type ReturnStmt struct {
 	Expr Ast
@@ -58,7 +60,7 @@ func require[T comparable](_ T, p *Parser) (T, error) {
 		return value, fmt.Errorf("Expected %v, errored: %s", tok, err.Error())
 	}
 	value, ok := tok.(T)
-	if !ok  {
+	if !ok {
 		return value, fmt.Errorf("Expected %v, but found %T %v", tok, tok, tok)
 	}
 	return value, nil
@@ -66,7 +68,9 @@ func require[T comparable](_ T, p *Parser) (T, error) {
 
 func trimSemicolon(p *Parser) {
 	tok, err := p.lex.PeekToken()
-	if err != nil { return }
+	if err != nil {
+		return
+	}
 	value, ok := tok.(Delimeter)
 	if ok && value == Semicolon {
 		_, _ = p.lex.NextToken()
@@ -120,23 +124,33 @@ func (p *Parser) expression(prec int) (Ast, error) {
 	lex := p.lex
 
 	token, err := lex.PeekToken()
-	if err != nil { return nil, err }
+	if err != nil {
+		return nil, err
+	}
 
 	expr, err = token.ParsePrefix(p)
-	if err != nil { return nil, err }
+	if err != nil {
+		return nil, err
+	}
 
 	token, err = lex.PeekToken()
 	if IsEof(err) {
 		return expr, nil
 	}
-	if err != nil { return nil, err }
+	if err != nil {
+		return nil, err
+	}
 
 	for token.Precedence() > prec {
 		expr, err = token.ParseInfix(expr, p)
-		if err != nil { return nil, err }
+		if err != nil {
+			return nil, err
+		}
 		token, err = lex.PeekToken()
-		if err != nil { 
-			if IsEof(err) { err = nil }
+		if err != nil {
+			if IsEof(err) {
+				err = nil
+			}
 			break
 		}
 	}
@@ -150,19 +164,25 @@ func (token Operator) ParsePrefix(parser *Parser) (Ast, error) {
 	return nil, fmt.Errorf("ParsePrefix: Expected a prefix operator, found %v", token)
 }
 func (token Identifier) ParsePrefix(parser *Parser) (Ast, error) {
-	return parser.lex.NextToken()
+	_, _ = parser.lex.NextToken()
+	return token, nil
 }
 func (token StringLit) ParsePrefix(parser *Parser) (Ast, error) {
-	return parser.lex.NextToken()
+	_, _ = parser.lex.NextToken()
+	return token, nil
 }
 func (token Delimeter) ParsePrefix(parser *Parser) (Ast, error) {
 	switch token {
 	case OpenParen:
 		_, _ = parser.lex.NextToken()
 		exp, err := parser.expression(0)
-		if err != nil { return nil, err }
+		if err != nil {
+			return nil, err
+		}
 		tok, err := parser.lex.NextToken()
-		if err != nil { return nil, err }
+		if err != nil {
+			return nil, err
+		}
 		if tok != CloseParen {
 			return nil, fmt.Errorf("ParsePrefix: Expected a closing parentheses, found %v", token)
 		}
@@ -171,7 +191,8 @@ func (token Delimeter) ParsePrefix(parser *Parser) (Ast, error) {
 	return nil, fmt.Errorf("ParsePrefix: Expected a prefix operator, found %v", token)
 }
 func (token NumLit) ParsePrefix(parser *Parser) (Ast, error) {
-	return parser.lex.NextToken()
+	_, _ = parser.lex.NextToken()
+	return token, nil
 }
 
 func (token Reserved) ParseInfix(left Ast, parser *Parser) (Ast, error) {
@@ -193,9 +214,9 @@ func (token StringLit) ParseInfix(left Ast, parser *Parser) (Ast, error) {
 func (token Operator) ParseInfix(left Ast, parser *Parser) (Ast, error) {
 	_, _ = parser.lex.NextToken()
 	right, err := parser.expression(token.Precedence())
-	return BinOpCall {
-		Op: token,
-		Left: left,
+	return BinOpCall{
+		Op:    token,
+		Left:  left,
 		Right: right,
 	}, err
 }
@@ -207,7 +228,11 @@ func (token Reserved) Precedence() int {
 	return 0
 }
 func (token Delimeter) Precedence() int {
-	if token == OpenParen || token == OpenBracket { return 4 } else { return 0 }
+	if token == OpenParen || token == OpenBracket {
+		return 4
+	} else {
+		return 0
+	}
 }
 func (token Identifier) Precedence() int {
 	return 0
@@ -217,10 +242,14 @@ func (token StringLit) Precedence() int {
 }
 func (token Operator) Precedence() int {
 	switch token {
-	case Dot: return 4
-	case Mul, Div: return 2
-	case Add, Sub: return 1
-	default: return 0
+	case Dot:
+		return 4
+	case Mul, Div:
+		return 2
+	case Add, Sub:
+		return 1
+	default:
+		return 0
 	}
 }
 func (token NumLit) Precedence() int {
@@ -255,7 +284,7 @@ func (p *Parser) functionCall(left Ast) (Ast, error) {
 	if err != nil {
 		err = fmt.Errorf("Expected ')', errored with: %s", err.Error())
 	}
-	return FunCall {
+	return FunCall{
 		Name: left,
 		Args: args,
 	}, err
@@ -263,22 +292,30 @@ func (p *Parser) functionCall(left Ast) (Ast, error) {
 
 func (p *Parser) parseLet() (Ast, error) {
 	_, err := expect(Let, p)
-	if err != nil { return nil, err }
+	if err != nil {
+		return nil, err
+	}
 
 	var ident Identifier
 	ident, err = require(ident, p)
-	if err != nil { return nil, err }
+	if err != nil {
+		return nil, err
+	}
 
 	_, err = expect(Equals, p)
-	if err != nil { return nil, err }
+	if err != nil {
+		return nil, err
+	}
 
 	expr, err := p.Expression()
-	if err != nil { return nil, err }
+	if err != nil {
+		return nil, err
+	}
 
 	trimSemicolon(p)
-	return LetStmt {
+	return LetStmt{
 		Ident: ident,
-		Expr: expr,
+		Expr:  expr,
 	}, nil
 }
 
@@ -288,7 +325,7 @@ func (p *Parser) parseReturn() (Ast, error) {
 	if err != nil {
 		return nil, err
 	}
-	return ReturnStmt { Expr: expr }, nil
+	return ReturnStmt{Expr: expr}, nil
 }
 
 func (p *Parser) parseDefun() (Ast, error) {
@@ -313,19 +350,27 @@ func (p *Parser) parseDefun() (Ast, error) {
 	for nextToken != CloseParen {
 		if len(args) >= 1 {
 			_, err = expect(Comma, p)
-			if err != nil { return nil, err }
+			if err != nil {
+				return nil, err
+			}
 		}
 		var ident Identifier
 		ident, err := require(ident, p)
-		if err != nil { return nil, err }
+		if err != nil {
+			return nil, err
+		}
 		args = append(args, ident)
 		nextToken, err = p.lex.PeekToken()
-		if err != nil { return nil, err }
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	_, err = expect(CloseParen, p)
 	_, err = expect(Equals, p)
-	if err != nil { return nil, err }
+	if err != nil {
+		return nil, err
+	}
 
 	nextToken, err = p.lex.PeekToken()
 	if err != nil {
@@ -336,17 +381,21 @@ func (p *Parser) parseDefun() (Ast, error) {
 
 	for nextToken != End {
 		stmt, err := p.Statement()
-		if err != nil { return nil, err }
+		if err != nil {
+			return nil, err
+		}
 		if stmt != Semicolon {
 			body = append(body, stmt)
 		}
 		nextToken, err = p.lex.PeekToken()
-		if err != nil { return nil, err }
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	_, err = expect(End, p)
-	
-	return FunDef {
+
+	return FunDef{
 		Name: name,
 		Args: args,
 		Body: body,
@@ -354,41 +403,41 @@ func (p *Parser) parseDefun() (Ast, error) {
 }
 
 func (bop BinOpCall) PPrint(indent int, b io.Writer) {
-	tab := strings.Repeat(" ", indent * indent_width)
+	tab := strings.Repeat(" ", indent*indent_width)
 	fmt.Fprintf(b, "%sOp", tab)
 	bop.Op.PPrint(0, b)
 	fmt.Fprint(b, "\n")
-	bop.Left.PPrint(indent + 1, b)
+	bop.Left.PPrint(indent+1, b)
 	fmt.Fprint(b, "\n")
-	bop.Right.PPrint(indent + 1, b)
+	bop.Right.PPrint(indent+1, b)
 
 }
 func (fc FunCall) PPrint(indent int, b io.Writer) {
-	tab := strings.Repeat(" ", indent * indent_width)
+	tab := strings.Repeat(" ", indent*indent_width)
 	fmt.Fprintf(b, "%sCall", tab)
 	fc.Name.PPrint(0, b)
 	for _, arg := range fc.Args {
 		fmt.Fprint(b, "\n")
-		arg.PPrint(indent + 1, b)
+		arg.PPrint(indent+1, b)
 	}
 }
 func (ls LetStmt) PPrint(indent int, b io.Writer) {
-	tab := strings.Repeat(" ", indent * indent_width)
+	tab := strings.Repeat(" ", indent*indent_width)
 	fmt.Fprintf(b, "%sLet ", tab)
 	ls.Ident.PPrint(0, b)
 	fmt.Fprint(b, "\n")
-	ls.Expr.PPrint(indent + 1, b)
+	ls.Expr.PPrint(indent+1, b)
 }
 func (rs ReturnStmt) PPrint(indent int, b io.Writer) {
-	tab := strings.Repeat(" ", indent * indent_width)
+	tab := strings.Repeat(" ", indent*indent_width)
 	fmt.Fprintf(b, "%sReturn\n", tab)
-	rs.Expr.PPrint(indent + 1, b)
-	
+	rs.Expr.PPrint(indent+1, b)
+
 }
 func (fd FunDef) PPrint(indent int, b io.Writer) {
 	fmt.Fprint(b, "\n")
-	tab := strings.Repeat(" ", indent * indent_width)
-	tab2 := strings.Repeat(" ", (indent + 1) * indent_width)
+	tab := strings.Repeat(" ", indent*indent_width)
+	tab2 := strings.Repeat(" ", (indent+1)*indent_width)
 	fmt.Fprintf(b, "%sFunDef", tab)
 	fd.Name.PPrint(0, b)
 	fmt.Fprintf(b, "\n%s(", tab2)
@@ -400,7 +449,7 @@ func (fd FunDef) PPrint(indent int, b io.Writer) {
 	}
 	fmt.Fprintf(b, ")\n")
 	for _, stmt := range fd.Body {
-		stmt.PPrint(indent + 1, b)
+		stmt.PPrint(indent+1, b)
 		fmt.Fprint(b, "\n")
 	}
 }

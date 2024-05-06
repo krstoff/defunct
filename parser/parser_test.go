@@ -7,12 +7,13 @@ import "strings"
 import "bufio"
 
 func TestParseLiterals(t *testing.T) {
-	lex := stringLexer("500")
+	lex := StringLexer("500")
 	parser := NewParser(lex)
 	ast, err := parser.Expression()
 	if err != nil {
-		t.Error(err.Error()); return
-		
+		t.Error(err.Error())
+		return
+
 	}
 
 	n, ok := ast.(NumLit)
@@ -22,24 +23,24 @@ func TestParseLiterals(t *testing.T) {
 }
 
 func TestBinOperators(t *testing.T) {
-	lex := stringLexer("1 * 2 + 3 / 4 - 5")
+	lex := StringLexer("1 * 2 + 3 / 4 - 5")
 	parser := NewParser(lex)
 	ast, err := parser.Expression()
 	if err != nil {
 		t.Error(err.Error())
 	}
-	expected := BinOpCall {
+	expected := BinOpCall{
 		Op: Sub,
-		Left: BinOpCall {
+		Left: BinOpCall{
 			Op: Add,
-			Left: BinOpCall {
-				Op: Mul,
-				Left: NumLit(1),
+			Left: BinOpCall{
+				Op:    Mul,
+				Left:  NumLit(1),
 				Right: NumLit(2),
 			},
-			Right: BinOpCall {
-				Op: Div,
-				Left: NumLit(3),
+			Right: BinOpCall{
+				Op:    Div,
+				Left:  NumLit(3),
 				Right: NumLit(4),
 			},
 		},
@@ -52,37 +53,40 @@ func TestBinOperators(t *testing.T) {
 }
 
 func TestFunctionCalls(t *testing.T) {
-	lex := stringLexer("halt() free(address) list(2, 3, 4, 5)")
+	lex := StringLexer("halt() free(address) list(2, 3, 4, 5)")
 	parser := NewParser(lex)
 	ast1, err1 := parser.Expression()
 	ast2, err2 := parser.Expression()
 	ast3, err3 := parser.Expression()
 
 	if err1 != nil {
-		t.Errorf("Failed to parse function call. %s", err1.Error()); return
+		t.Errorf("Failed to parse function call. %s", err1.Error())
+		return
 	}
 	if err2 != nil {
-		t.Errorf("Failed to parse function call. %s", err2.Error()); return 
+		t.Errorf("Failed to parse function call. %s", err2.Error())
+		return
 	}
 	if err3 != nil {
-		t.Errorf("Failed to parse function call. %s", err3.Error()); return
+		t.Errorf("Failed to parse function call. %s", err3.Error())
+		return
 	}
 
-	expected1 := FunCall {
-		Name: Identifier { sym: lex.st.Intern("halt") },
-		Args: []Ast {},
+	expected1 := FunCall{
+		Name: Identifier{sym: lex.st.Intern("halt")},
+		Args: []Ast{},
 	}
 
-	expected2 := FunCall {
-		Name: Identifier { sym: lex.st.Intern("free") },
-		Args: []Ast {Identifier{sym: lex.st.Intern("address")}},
+	expected2 := FunCall{
+		Name: Identifier{sym: lex.st.Intern("free")},
+		Args: []Ast{Identifier{sym: lex.st.Intern("address")}},
 	}
 
-	expected3 := FunCall {
-		Name: Identifier { sym: lex.st.Intern("list") },
-		Args: []Ast {NumLit(2), NumLit(3), NumLit(4), NumLit(5)},
+	expected3 := FunCall{
+		Name: Identifier{sym: lex.st.Intern("list")},
+		Args: []Ast{NumLit(2), NumLit(3), NumLit(4), NumLit(5)},
 	}
-	
+
 	if !reflect.DeepEqual(expected1, ast1) {
 		t.Errorf("Did not parse the tree that was expected. %#v", ast1)
 	}
@@ -95,7 +99,7 @@ func TestFunctionCalls(t *testing.T) {
 }
 
 func TestParens(t *testing.T) {
-	lex := stringLexer("1 * (2 + 3) * free(willie)")
+	lex := StringLexer("1 * (2 + 3) * free(willie)")
 	parser := NewParser(lex)
 	ast, err := parser.Expression()
 	if err != nil {
@@ -103,20 +107,20 @@ func TestParens(t *testing.T) {
 		return
 	}
 
-	expected := BinOpCall {
+	expected := BinOpCall{
 		Op: Mul,
-		Left: BinOpCall {
-			Op: Mul,
+		Left: BinOpCall{
+			Op:   Mul,
 			Left: NumLit(1),
-			Right: BinOpCall {
-				Op: Add,
-				Left: NumLit(2),
+			Right: BinOpCall{
+				Op:    Add,
+				Left:  NumLit(2),
 				Right: NumLit(3),
 			},
 		},
-		Right: FunCall {
-			Name: Identifier { sym: lex.st.Intern("free") },
-			Args: []Ast {Identifier{sym: lex.st.Intern("willie")}},
+		Right: FunCall{
+			Name: Identifier{sym: lex.st.Intern("free")},
+			Args: []Ast{Identifier{sym: lex.st.Intern("willie")}},
 		},
 	}
 
@@ -143,22 +147,22 @@ func TestFunctions(t *testing.T) {
 		t.Errorf("Could not parse definition: %s", err.Error())
 	}
 
-	expected := FunDef {
-		Name: Identifier { sym: lexer.st.Intern("doubleAdd") },
-		Args: []Ast { Identifier { sym: lexer.st.Intern("x") }, Identifier { sym: lexer.st.Intern("y") } },
-		Body: []Ast {
-			LetStmt {
-				Ident: Identifier { sym: lexer.st.Intern("sum") },
-				Expr: BinOpCall {
-					Op: Add, 
-					Left: Identifier { sym: lexer.st.Intern("x") }, 
-					Right: Identifier { sym: lexer.st.Intern("y") },
+	expected := FunDef{
+		Name: Identifier{sym: lexer.st.Intern("doubleAdd")},
+		Args: []Ast{Identifier{sym: lexer.st.Intern("x")}, Identifier{sym: lexer.st.Intern("y")}},
+		Body: []Ast{
+			LetStmt{
+				Ident: Identifier{sym: lexer.st.Intern("sum")},
+				Expr: BinOpCall{
+					Op:    Add,
+					Left:  Identifier{sym: lexer.st.Intern("x")},
+					Right: Identifier{sym: lexer.st.Intern("y")},
 				},
 			},
-			BinOpCall {
-				Op: Mul,
-				Left: NumLit(2),
-				Right: Identifier { sym: lexer.st.Intern("sum") },
+			BinOpCall{
+				Op:    Mul,
+				Left:  NumLit(2),
+				Right: Identifier{sym: lexer.st.Intern("sum")},
 			},
 		},
 	}

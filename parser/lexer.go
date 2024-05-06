@@ -12,8 +12,8 @@ import . "defunct/symbols"
 
 type Runes struct {
 	peeked rune
-	err error
-	r io.RuneReader
+	err    error
+	r      io.RuneReader
 }
 
 func NewRunes(r io.RuneReader) Runes {
@@ -23,7 +23,7 @@ func NewRunes(r io.RuneReader) Runes {
 }
 
 func (runes *Runes) PeekRune() (rune, error) {
-	if runes.peeked != 0  || runes.err != nil{
+	if runes.peeked != 0 || runes.err != nil {
 		return runes.peeked, runes.err
 	}
 	c, _, err := runes.r.ReadRune()
@@ -33,7 +33,7 @@ func (runes *Runes) PeekRune() (rune, error) {
 }
 
 func (runes *Runes) ReadRune() (rune, error) {
-	if runes.peeked !=0 || runes.err != nil {
+	if runes.peeked != 0 || runes.err != nil {
 		peeked := runes.peeked
 		runes.peeked = 0
 		return peeked, runes.err
@@ -46,6 +46,7 @@ func (runes *Runes) ReadRune() (rune, error) {
 }
 
 type InvalidCharacter rune
+
 func (i *InvalidCharacter) Error() string {
 	return fmt.Sprintf("Invalid character detected: %U", rune(*i))
 }
@@ -77,14 +78,14 @@ const (
 	Else
 )
 
-var keywords =  map[string]Reserved {
-	"defun": Defun,
-	"end": End,
+var keywords = map[string]Reserved{
+	"defun":  Defun,
+	"end":    End,
 	"return": Return,
-	"let": Let,
-	"if": If,
-	"then": Then,
-	"else": Else,
+	"let":    Let,
+	"if":     If,
+	"then":   Then,
+	"else":   Else,
 }
 
 const (
@@ -104,7 +105,6 @@ const (
 	Div
 	Dot
 )
-
 
 // todo
 func (token Reserved) Source() (int, int) {
@@ -131,12 +131,12 @@ func IsEof(err error) bool {
 }
 
 type Lexer struct {
-	runes Runes
-	row, col int
-	st *SymbolTable
-	src string
-	peeked Token
-	err error
+	runes       Runes
+	row, col    int
+	st          *SymbolTable
+	src         string
+	peeked      Token
+	err         error
 	semicolonOk bool
 }
 
@@ -151,7 +151,7 @@ func NewLexer(r io.RuneReader, st *SymbolTable) *Lexer {
 	return lexer
 }
 
-func stringLexer(s string) *Lexer {
+func StringLexer(s string) *Lexer {
 	r := strings.NewReader(s)
 	st := NewSymbolTable(nil)
 	lex := NewLexer(r, st)
@@ -178,7 +178,7 @@ func (lex *Lexer) ReadRune() (rune, error) {
 }
 
 func (lex *Lexer) PeekToken() (Token, error) {
-	if lex.peeked != nil  || lex.err != nil {
+	if lex.peeked != nil || lex.err != nil {
 		return lex.peeked, lex.err
 	}
 	t, err := lex.readToken()
@@ -200,10 +200,12 @@ func (lex *Lexer) NextToken() (Token, error) {
 	return t, lex.err
 }
 
-/// Returns nil, bufio.ErrFinalToken on end of input. or io.Eof. I can't tell.
+// / Returns nil, bufio.ErrFinalToken on end of input. or io.Eof. I can't tell.
 func (lex *Lexer) readToken() (Token, error) {
 	r, err := lex.PeekRune()
-	if err != nil { goto readErr }
+	if err != nil {
+		goto readErr
+	}
 
 	// trim whitespace
 	for isWhitespace(r) {
@@ -213,7 +215,9 @@ func (lex *Lexer) readToken() (Token, error) {
 			return Semicolon, nil
 		}
 		_, err = lex.ReadRune()
-		if err != nil { goto readErr }
+		if err != nil {
+			goto readErr
+		}
 		r, err = lex.PeekRune()
 	}
 
@@ -225,7 +229,7 @@ func (lex *Lexer) readToken() (Token, error) {
 	case r == '(':
 		_, _ = lex.ReadRune()
 		return OpenParen, nil
-    case r == ')':
+	case r == ')':
 		_, _ = lex.ReadRune()
 		lex.semicolonOk = true
 		return CloseParen, nil
@@ -267,8 +271,8 @@ func (lex *Lexer) readToken() (Token, error) {
 		return nil, &ivc
 	}
 
-	readErr:
-		return nil, err
+readErr:
+	return nil, err
 }
 
 func isWhitespace(r rune) bool {
@@ -276,7 +280,7 @@ func isWhitespace(r rune) bool {
 }
 
 func isNumberStartChar(c rune) bool {
-	return unicode.IsDigit(c)	
+	return unicode.IsDigit(c)
 }
 
 func isIdentChar(c rune) bool {
@@ -291,7 +295,9 @@ func (lex *Lexer) lexNumber() (Token, error) {
 
 	for c, _ = lex.PeekRune(); isIdentChar(c) || c == '.'; c, _ = lex.PeekRune() {
 		c, err = lex.ReadRune()
-		if err != nil { return nil, err }
+		if err != nil {
+			return nil, err
+		}
 		digits = digits + string(c)
 	}
 
@@ -308,7 +314,6 @@ func (lex *Lexer) lexNumber() (Token, error) {
 	return t, nil
 }
 
-
 func (lex *Lexer) lexIdentOrReserved() (Token, error) {
 	var c rune
 	var err error
@@ -316,7 +321,9 @@ func (lex *Lexer) lexIdentOrReserved() (Token, error) {
 
 	for c, _ = lex.PeekRune(); isIdentChar(c); c, _ = lex.PeekRune() {
 		c, err = lex.ReadRune()
-		if err != nil { return nil, err }
+		if err != nil {
+			return nil, err
+		}
 		ident = ident + string(c)
 	}
 
@@ -331,7 +338,7 @@ func (lex *Lexer) lexIdentOrReserved() (Token, error) {
 		}
 		return key, nil
 	} else {
-		i := Identifier { sym: lex.st.Intern(ident) }
+		i := Identifier{sym: lex.st.Intern(ident)}
 		lex.semicolonOk = true
 		return i, nil
 	}
@@ -340,56 +347,77 @@ func (lex *Lexer) lexIdentOrReserved() (Token, error) {
 const indent_width int = 2
 
 func (token Reserved) PPrint(indent int, w io.Writer) {
-	tab := strings.Repeat(" ", indent * indent_width)
+	tab := strings.Repeat(" ", indent*indent_width)
 	switch token {
-	case Defun: fmt.Fprintf(w, "%sdefun", tab)
-	case End: fmt.Fprintf(w, "%send", tab)
-	case Return: fmt.Fprintf(w, "%sreturn", tab)
-	case Let: fmt.Fprintf(w, "%slet", tab)
-	case If: fmt.Fprintf(w, "%sif", tab)
-	case Then: fmt.Fprintf(w, "%sthen", tab)
-	case Else: fmt.Fprintf(w, "%selse", tab)
-	default: panic("Tried to pretty print something not printable.")
+	case Defun:
+		fmt.Fprintf(w, "%sdefun", tab)
+	case End:
+		fmt.Fprintf(w, "%send", tab)
+	case Return:
+		fmt.Fprintf(w, "%sreturn", tab)
+	case Let:
+		fmt.Fprintf(w, "%slet", tab)
+	case If:
+		fmt.Fprintf(w, "%sif", tab)
+	case Then:
+		fmt.Fprintf(w, "%sthen", tab)
+	case Else:
+		fmt.Fprintf(w, "%selse", tab)
+	default:
+		panic("Tried to pretty print something not printable.")
 	}
 }
 
 func (token Delimeter) PPrint(indent int, w io.Writer) {
-	tab := strings.Repeat(" ", indent * indent_width)
+	tab := strings.Repeat(" ", indent*indent_width)
 	fmt.Fprint(w, tab)
 	switch token {
-	case OpenParen: fmt.Fprintf(w, "%s(", tab)
-	case CloseParen: fmt.Fprintf(w, "%s)", tab)
-	case OpenBracket: fmt.Fprintf(w, "%s[", tab)
-	case CloseBracket: fmt.Fprintf(w, "%s]", tab)
-	case Equals: fmt.Fprintf(w, "%s=", tab)
-	case Comma: fmt.Fprintf(w, "%s,", tab) 
-	case Semicolon: fmt.Fprint(w, ";", tab)
-	default: panic("Tried to pretty print something not printable.")
+	case OpenParen:
+		fmt.Fprintf(w, "%s(", tab)
+	case CloseParen:
+		fmt.Fprintf(w, "%s)", tab)
+	case OpenBracket:
+		fmt.Fprintf(w, "%s[", tab)
+	case CloseBracket:
+		fmt.Fprintf(w, "%s]", tab)
+	case Equals:
+		fmt.Fprintf(w, "%s=", tab)
+	case Comma:
+		fmt.Fprintf(w, "%s,", tab)
+	case Semicolon:
+		fmt.Fprint(w, ";", tab)
+	default:
+		panic("Tried to pretty print something not printable.")
 	}
 }
 func (token Identifier) PPrint(indent int, w io.Writer) {
-	tab := strings.Repeat(" ", indent * indent_width)
+	tab := strings.Repeat(" ", indent*indent_width)
 	fmt.Fprint(w, tab)
-	fmt.Fprintf(w, ":" + token.sym.Name)
+	fmt.Fprintf(w, ":"+token.sym.Name)
 }
 func (token StringLit) PPrint(indent int, w io.Writer) {
-	tab := strings.Repeat(" ", indent * indent_width)
+	tab := strings.Repeat(" ", indent*indent_width)
 	fmt.Fprint(w, tab)
-	fmt.Fprintf(w, "\"" + string(token) + "\"")
+	fmt.Fprintf(w, "\""+string(token)+"\"")
 }
 func (token NumLit) PPrint(indent int, w io.Writer) {
-	tab := strings.Repeat(" ", indent * indent_width)
+	tab := strings.Repeat(" ", indent*indent_width)
 	fmt.Fprint(w, tab)
-	fmt.Fprintf(w, "%d", int(token))
+	fmt.Fprintf(w, "%v", float64(token))
 }
 func (token Operator) PPrint(indent int, w io.Writer) {
-	tab := strings.Repeat(" ", indent * indent_width)
+	tab := strings.Repeat(" ", indent*indent_width)
 	fmt.Fprint(w, tab)
 	switch token {
-	case Add: fmt.Fprint(w, "+")
-	case Sub: fmt.Fprint(w, "-")
-	case Mul: fmt.Fprint(w, "*")
-	case Div: fmt.Fprint(w, "/")
-	default: panic("Tried to pretty print something not printable.")
+	case Add:
+		fmt.Fprint(w, "+")
+	case Sub:
+		fmt.Fprint(w, "-")
+	case Mul:
+		fmt.Fprint(w, "*")
+	case Div:
+		fmt.Fprint(w, "/")
+	default:
+		panic("Tried to pretty print something not printable.")
 	}
 }
