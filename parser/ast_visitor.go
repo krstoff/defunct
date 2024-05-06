@@ -12,6 +12,7 @@ type Visitor interface {
 	VisitLetStmt(LetStmt)
 	VisitReturnStmt(ReturnStmt)
 	VisitFunDef(FunDef)
+	VisitBlockStmt(BlockStmt)
 }
 
 func (token Reserved) Accept(v Visitor) {
@@ -47,4 +48,7 @@ func (rs ReturnStmt) Accept(v Visitor) {
 }
 func (fd FunDef) Accept(v Visitor) {
 	v.VisitFunDef(fd)
+}
+func (bs BlockStmt) Accept(v Visitor) {
+	v.VisitBlockStmt(bs)
 }

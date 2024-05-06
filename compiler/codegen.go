@@ -9,7 +9,53 @@ const (
 	MulOp
 	SubOp
 	DivOp
+	LoadOp
 )
+
+type LocalInfo struct {
+	name p.Identifier
+	depth int
+}
+
+type Locals struct {
+	depth int
+	idents []LocalInfo
+}
+
+func (l *Locals) EnterScope() {
+	l.depth += 1
+}
+
+func (l *Locals) ExitScope() {
+	if l.depth == 0 { return }
+	l.depth -= 1
+	for i := len(l.idents) - 1; i >= 0; i-- {
+		if l.idents[i].depth > l.depth {
+			l.idents = l.idents[:len(l.idents) - 1]
+		}
+	}
+}
+
+func (l *Locals) Push(newLocal p.Identifier) {
+	if len(l.idents) == 255 {
+		panic("Max number of locals reached")
+	}
+	l.idents = append(l.idents, LocalInfo {
+		name: newLocal,
+		depth: l.depth,
+	})
+}
+
+func (l *Locals) OffsetOf(newLocal p.Identifier) (int, bool) {
+	var offset int
+	for i := len(l.idents) - 1; i >= 0; i-- {
+		if l.idents[i].name == newLocal {
+			return i, true
+		}
+	}
+	return offset, false
+}
+
 
 type Bytecode struct {
 	Constants []Value
@@ -19,10 +65,15 @@ type Bytecode struct {
 type Emitter struct {
 	Constants []Value
 	Bytes []byte
+	Locals Locals
 }
 
 func NewEmitter() *Emitter {
 	e := new(Emitter)
+	e.Locals = Locals {
+		depth: 0,
+		idents: make([]LocalInfo, 0),
+	}
 	return e
 }
 
@@ -42,8 +93,13 @@ func (e *Emitter) VisitReserved(_ p.Reserved) {
 func (e *Emitter) VisitDelimeter(_ p.Delimeter) {
 
 }
-func (e *Emitter) VisitIdentifier(_ p.Identifier) {
-
+func (e *Emitter) VisitIdentifier(ident p.Identifier) {
+	offset, ok := e.Locals.OffsetOf(ident)
+	if !ok {
+		panic("variable used before declared")
+	}
+	e.Write(LoadOp)
+	e.Write(byte(offset))
 }
 func (e *Emitter) VisitStringLit(_ p.StringLit) {
 
@@ -73,14 +129,23 @@ func (e *Emitter) VisitBinOpCall(bop p.BinOpCall) {
 func (e *Emitter) VisitFunCall(_ p.FunCall) {
 
 }
-func (e *Emitter) VisitLetStmt(_ p.LetStmt) {
-
+func (e *Emitter) VisitLetStmt(ls p.LetStmt) {
+	e.Locals.Push(ls.Ident)
+	ls.Expr.Accept(e)
 }
 func (e *Emitter) VisitReturnStmt(_ p.ReturnStmt) {
 
 }
 func (e *Emitter) VisitFunDef(_ p.FunDef) {
 
+}
+func (e *Emitter) VisitBlockStmt(bs p.BlockStmt) {
+	e.Locals.EnterScope()
+	body := []p.Ast(bs)
+	for _, stmt := range body {
+		stmt.Accept(e)
+	}
+	e.Locals.ExitScope()
 }
 
 func Disassemble(bytes []byte, constants []Value) string {
@@ -99,6 +164,10 @@ func Disassemble(bytes []byte, constants []Value) string {
 			s = s + "sub\n"
 		case DivOp:
 			s = s + "div\n"
+		case LoadOp:
+			arg := bytes[i + 1]
+			i += 1
+			s = s + fmt.Sprintf("load $%v\n", arg)
 		default:
 			panic("Unknown opcode encountered.")
 		}

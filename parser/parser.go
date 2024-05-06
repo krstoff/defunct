@@ -29,6 +29,7 @@ type LetStmt struct {
 type ReturnStmt struct {
 	Expr Ast
 }
+type BlockStmt []Ast
 type FunDef struct {
 	Name Identifier
 	Args []Ast
@@ -116,6 +117,38 @@ func (p *Parser) Statement() (Ast, error) {
 	expr, err := p.Expression()
 
 	return expr, err
+}
+
+func (p *Parser) Block() (Ast, error) {
+	_, err := expect(Do, p)
+	if err != nil {
+		return nil, err
+	}
+	
+	nextToken, err := p.lex.PeekToken()
+	if err != nil {
+		return nil, fmt.Errorf("parseDefun: %w", err)
+	}
+
+	body := make([]Ast, 0)
+
+	for nextToken != End {
+		stmt, err := p.Statement()
+		if err != nil {
+			return nil, err
+		}
+		if stmt != Semicolon {
+			body = append(body, stmt)
+		}
+		nextToken, err = p.lex.PeekToken()
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	_, err = expect(End, p)
+
+	return BlockStmt(body), nil
 }
 
 func (p *Parser) expression(prec int) (Ast, error) {
@@ -449,6 +482,14 @@ func (fd FunDef) PPrint(indent int, b io.Writer) {
 	}
 	fmt.Fprintf(b, ")\n")
 	for _, stmt := range fd.Body {
+		stmt.PPrint(indent+1, b)
+		fmt.Fprint(b, "\n")
+	}
+}
+func (bs BlockStmt) PPrint(indent int, b io.Writer) {
+	tab := strings.Repeat(" ", indent*indent_width)
+	fmt.Fprintf(b, "%sDo\n", tab)
+	for _, stmt := range []Ast(bs) {
 		stmt.PPrint(indent+1, b)
 		fmt.Fprint(b, "\n")
 	}

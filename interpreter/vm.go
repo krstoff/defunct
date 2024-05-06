@@ -29,6 +29,7 @@ func (vm *Vm) Run() {
 		case c.SubOp: vm.sub()
 		case c.MulOp: vm.mul()
 		case c.DivOp: vm.div()
+		case c.LoadOp: vm.load()
 		}
 		vm.ip += 1
 	}
@@ -86,4 +87,11 @@ func (vm *Vm) div() {
 	rv := vm.pop()
 	r, ok := rv.(float64)
 	vm.push(l / r)
+}
+
+func (vm *Vm) load() {
+	vm.ip += 1
+	slot := vm.code.Bytes[vm.ip]
+	arg := vm.valueStack[int(slot)]
+	vm.push(arg)
 }

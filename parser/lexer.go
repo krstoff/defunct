@@ -76,6 +76,7 @@ const (
 	If
 	Then
 	Else
+	Do
 )
 
 var keywords = map[string]Reserved{
@@ -86,6 +87,7 @@ var keywords = map[string]Reserved{
 	"if":     If,
 	"then":   Then,
 	"else":   Else,
+	"do": 	  Do,
 }
 
 const (
