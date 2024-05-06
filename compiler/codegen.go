@@ -132,8 +132,8 @@ func (e *Emitter) VisitFunCall(_ p.FunCall) {
 
 }
 func (e *Emitter) VisitLetStmt(ls p.LetStmt) {
-	e.Locals.Push(ls.Ident)
 	ls.Expr.Accept(e)
+	e.Locals.Push(ls.Ident)
 }
 func (e *Emitter) VisitReturnStmt(_ p.ReturnStmt) {
 
