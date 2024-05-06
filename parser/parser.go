@@ -29,6 +29,9 @@ type LetStmt struct {
 type ReturnStmt struct {
 	Expr Ast
 }
+type ExprStmt struct {
+	Expr Ast
+}
 type BlockStmt []Ast
 type FunDef struct {
 	Name Identifier
@@ -116,7 +119,7 @@ func (p *Parser) Statement() (Ast, error) {
 	}
 	expr, err := p.Expression()
 
-	return expr, err
+	return ExprStmt { Expr: expr }, err
 }
 
 func (p *Parser) Block() (Ast, error) {
@@ -493,4 +496,7 @@ func (bs BlockStmt) PPrint(indent int, b io.Writer) {
 		stmt.PPrint(indent+1, b)
 		fmt.Fprint(b, "\n")
 	}
+}
+func (es ExprStmt) PPrint(ident int, b io.Writer) {
+	es.Expr.PPrint(ident, b)
 }

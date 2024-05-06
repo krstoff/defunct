@@ -149,6 +149,10 @@ func (e *Emitter) VisitBlockStmt(bs p.BlockStmt) {
 	}
 	e.Locals.ExitScope(e)
 }
+func (e *Emitter) VisitExprStmt(es p.ExprStmt) {
+	es.Expr.Accept(e)
+	e.Write(PopOp)
+}
 
 func Disassemble(bytes []byte, constants []Value) string {
 	s := ""
