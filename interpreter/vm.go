@@ -4,7 +4,8 @@ import c "defunct/compiler"
 import "fmt"
 import "os"
 
-const maxStackSize = 65535
+const valueStackMax = 65535
+const callStackMax = 1000
 const debugStack = true
 
 type CallFrame struct {
@@ -21,8 +22,8 @@ type Vm struct {
 
 func NewVm() *Vm {
 	vm := new(Vm)
-	vm.callFrames = make([]CallFrame, 0)
-	vm.valueStack = make([]c.Value, 0)
+	vm.callFrames = make([]CallFrame, 0, callStackMax)
+	vm.valueStack = make([]c.Value, 0, valueStackMax)
 	vm.globals = make(map[c.Value]c.Value)
 	return vm
 }
@@ -38,7 +39,7 @@ func (vm *Vm) Globals() map[c.Value]c.Value {
 }
 
 func (vm *Vm) getFrame() *CallFrame {
-	return &vm.callFrames[len(vm.callFrames) - 1]
+	return &(vm.callFrames[len(vm.callFrames) - 1])
 }
 
 func (vm *Vm) pushFrame(offset int, code *c.Bytecode) {
@@ -48,8 +49,6 @@ func (vm *Vm) pushFrame(offset int, code *c.Bytecode) {
 		code: code,
 	}
 	vm.callFrames = append(vm.callFrames, frame)
-	code = vm.getFrame().code
-	
 }
 
 func (vm *Vm) popFrame() {
@@ -66,7 +65,7 @@ mainLoop:
 	for {
 		frame := vm.getFrame()
 		if debugStack { vm.DumpState() }
-		if frame.ip >= len(frame.code.Bytes) { break }
+		if frame.ip >= len(frame.code.Bytes) { break mainLoop}
 		switch frame.code.Bytes[frame.ip] {
 		case c.ConstOp: vm.constant()
 		case c.AddOp: vm.add()
@@ -88,9 +87,8 @@ mainLoop:
 func (vm *Vm) DumpState() {
 	frame := vm.getFrame()
 	code := frame.code
-	c.Decode(code.Bytes[frame.ip:], code.Constants, os.Stdout)
-	fmt.Printf("%-10s", " ")
-	fmt.Println(vm.valueStack)
+	decoded := c.Decode(code.Bytes[frame.ip:], code.Constants, os.Stdout)
+	fmt.Printf("%-16s%v\n", decoded, vm.valueStack)
 }
 
 func (vm *Vm) Result() c.Value {
