@@ -1,7 +1,6 @@
 package parser
 
 import "fmt"
-import "strings"
 import "io"
 
 type Parser struct {
@@ -457,74 +456,4 @@ func (p *Parser) parseDefun() (Ast, error) {
 		Args: args,
 		Body: body,
 	}, nil
-}
-
-func (bop BinOpCall) PPrint(indent int, b io.Writer) {
-	tab := strings.Repeat(" ", indent*indent_width)
-	fmt.Fprintf(b, "%sOp", tab)
-	bop.Op.PPrint(0, b)
-	fmt.Fprint(b, "\n")
-	bop.Left.PPrint(indent+1, b)
-	fmt.Fprint(b, "\n")
-	bop.Right.PPrint(indent+1, b)
-
-}
-func (fc FunCall) PPrint(indent int, b io.Writer) {
-	tab := strings.Repeat(" ", indent*indent_width)
-	fmt.Fprintf(b, "%sCall", tab)
-	fc.Name.PPrint(0, b)
-	for _, arg := range fc.Args {
-		fmt.Fprint(b, "\n")
-		arg.PPrint(indent+1, b)
-	}
-}
-func (ls LetStmt) PPrint(indent int, b io.Writer) {
-	tab := strings.Repeat(" ", indent*indent_width)
-	fmt.Fprintf(b, "%sLet ", tab)
-	ls.Ident.PPrint(0, b)
-	fmt.Fprint(b, "\n")
-	ls.Expr.PPrint(indent+1, b)
-}
-func (rs ReturnStmt) PPrint(indent int, b io.Writer) {
-	tab := strings.Repeat(" ", indent*indent_width)
-	fmt.Fprintf(b, "%sReturn\n", tab)
-	rs.Expr.PPrint(indent+1, b)
-
-}
-func (fd FunDef) PPrint(indent int, b io.Writer) {
-	fmt.Fprint(b, "\n")
-	tab := strings.Repeat(" ", indent*indent_width)
-	tab2 := strings.Repeat(" ", (indent+1)*indent_width)
-	fmt.Fprintf(b, "%sFunDef", tab)
-	fd.Name.PPrint(0, b)
-	fmt.Fprintf(b, "\n%s(", tab2)
-	for i, arg := range fd.Args {
-		if i > 0 {
-			fmt.Fprintf(b, ", ")
-		}
-		arg.PPrint(0, b)
-	}
-	fmt.Fprintf(b, ")\n")
-	for _, stmt := range fd.Body {
-		stmt.PPrint(indent+1, b)
-		fmt.Fprint(b, "\n")
-	}
-}
-func (bs BlockStmt) PPrint(indent int, b io.Writer) {
-	tab := strings.Repeat(" ", indent*indent_width)
-	fmt.Fprintf(b, "%sDo\n", tab)
-	for _, stmt := range []Ast(bs) {
-		stmt.PPrint(indent+1, b)
-		fmt.Fprint(b, "\n")
-	}
-}
-func (es ExprStmt) PPrint(ident int, b io.Writer) {
-	es.Expr.PPrint(ident, b)
-}
-
-func (m Module) PPrint(ident int, b io.Writer) {
-	for _, d := range m.Defs {
-		d.PPrint(ident, b)
-		fmt.Fprintf(b, "\n")
-	}
 }
