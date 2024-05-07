@@ -2,6 +2,8 @@ package interpreter
 
 import c "defunct/compiler"
 import "fmt"
+import "os"
+
 const maxStackSize = 65535
 const debugStack = true
 
@@ -14,13 +16,25 @@ type CallFrame struct {
 type Vm struct { 
 	callFrames []CallFrame
 	valueStack []c.Value
+	globals    map[c.Value]c.Value
 }
 
 func NewVm() *Vm {
 	vm := new(Vm)
 	vm.callFrames = make([]CallFrame, 0)
 	vm.valueStack = make([]c.Value, 0)
+	vm.globals = make(map[c.Value]c.Value)
 	return vm
+}
+
+func (vm *Vm) takeOperand() int {
+	frame := vm.getFrame()
+	frame.ip += 1
+	return int(frame.code.Bytes[int(frame.ip)])
+}
+
+func (vm *Vm) Globals() map[c.Value]c.Value {
+	return vm.globals
 }
 
 func (vm *Vm) getFrame() *CallFrame {
@@ -34,6 +48,8 @@ func (vm *Vm) pushFrame(offset int, code *c.Bytecode) {
 		code: code,
 	}
 	vm.callFrames = append(vm.callFrames, frame)
+	code = vm.getFrame().code
+	
 }
 
 func (vm *Vm) popFrame() {
@@ -45,8 +61,11 @@ func (vm *Vm) Run(code *c.Bytecode, initialArgs ...c.Value) {
 		vm.push(arg)
 	}
 	vm.pushFrame(0, code)
-mainLoop: for {
+
+mainLoop:
+	for {
 		frame := vm.getFrame()
+		if debugStack { vm.DumpState() }
 		if frame.ip >= len(frame.code.Bytes) { break }
 		switch frame.code.Bytes[frame.ip] {
 		case c.ConstOp: vm.constant()
@@ -59,13 +78,19 @@ mainLoop: for {
 		case c.CallOp: vm.call()
 		case c.Ret0Op: if vm.ret0() { break mainLoop }
 		case c.Ret1Op: if vm.ret1() { break mainLoop }
-		case c.HaltOp: break
+		case c.LoadGlobalOp: vm.loadGlobal()
+		case c.HaltOp: break mainLoop
 		}
-		if debugStack { fmt.Println(vm.valueStack) }
 		frame.ip += 1
 	}
+}
 
-	if debugStack { fmt.Println(vm.valueStack)}
+func (vm *Vm) DumpState() {
+	frame := vm.getFrame()
+	code := frame.code
+	c.Decode(code.Bytes[frame.ip:], code.Constants, os.Stdout)
+	fmt.Printf("%-10s", " ")
+	fmt.Println(vm.valueStack)
 }
 
 func (vm *Vm) Result() c.Value {
@@ -83,10 +108,8 @@ func (vm *Vm) push(v c.Value) {
 }
 
 func (vm *Vm) constant() {
-	frame := vm.getFrame()
-	frame.ip += 1
-	slot := frame.code.Bytes[frame.ip]
-	arg := frame.code.Constants[int(slot)]
+	slot := vm.takeOperand()
+	arg := vm.getFrame().code.Constants[slot]
 	vm.push(arg)
 }
 
@@ -96,6 +119,7 @@ func (vm *Vm) add() {
 	if !ok { panic("type error")}
 	rv := vm.pop()
 	r, ok := rv.(float64)
+	if !ok { panic("type error")}
 	vm.push(l + r)
 }
 func (vm *Vm) sub() {
@@ -104,6 +128,7 @@ func (vm *Vm) sub() {
 	if !ok { panic("type error")}
 	rv := vm.pop()
 	r, ok := rv.(float64)
+	if !ok { panic("type error")}
 	vm.push(l - r)
 }
 func (vm *Vm) mul() {
@@ -112,6 +137,7 @@ func (vm *Vm) mul() {
 	if !ok { panic("type error")}
 	rv := vm.pop()
 	r, ok := rv.(float64)
+	if !ok { panic("type error")}
 	vm.push(l * r)
 }
 func (vm *Vm) div() {
@@ -120,21 +146,18 @@ func (vm *Vm) div() {
 	if !ok { panic("type error")}
 	rv := vm.pop()
 	r, ok := rv.(float64)
+	if !ok { panic("type error")}
 	vm.push(l / r)
 }
 
 func (vm *Vm) load() {
-	frame := vm.getFrame()
-	frame.ip += 1
-	slot := frame.code.Bytes[frame.ip]
-	arg := vm.valueStack[int(slot) + frame.offset]
+	slot := vm.takeOperand()
+	arg := vm.valueStack[slot + vm.getFrame().offset]
 	vm.push(arg)
 }
 
 func (vm *Vm) call() {
-	frame := vm.getFrame()
-	frame.ip += 1
-	numArgs := frame.code.Bytes[frame.ip]
+	numArgs := vm.takeOperand()
 	callee := vm.pop()
 	offset := len(vm.valueStack) - int(numArgs)
 
@@ -165,4 +188,14 @@ func (vm *Vm) ret1() bool {
 	vm.push(val)
 	if len(vm.callFrames) == 0 { return true }
 	return false
+}
+
+func (vm *Vm) loadGlobal() {
+	slot := vm.takeOperand()
+	name := vm.getFrame().code.Constants[slot]
+	value, ok := vm.globals[name]
+	if !ok {
+		panic("Global variable undefined")
+	}
+	vm.push(value)
 }

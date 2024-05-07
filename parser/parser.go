@@ -377,7 +377,7 @@ func (p *Parser) parseLet() (Ast, error) {
 
 func (p *Parser) parseReturn() (Ast, error) {
 	_, err := expect(Return, p)
-	expr, err := p.Statement()
+	expr, err := p.Expression()
 	if err != nil {
 		return nil, err
 	}

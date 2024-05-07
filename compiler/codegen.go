@@ -3,6 +3,7 @@ package compiler
 import p "defunct/parser"
 import "fmt"
 import "os"
+import "io"
 import "bufio"
 
 const (
@@ -12,14 +13,16 @@ const (
 	SubOp
 	DivOp
 	LoadOp
+	LoadGlobalOp
 	PopOp
 	CallOp
 	HaltOp
 	Ret0Op
 	Ret1Op
+
 )
 
-func Compile(file *os.File) (map[string]*Bytecode, error) {
+func Compile(globals map[Value]Value, file *os.File) (map[string]*Bytecode, error) {
 	lexer := p.NewLexer(bufio.NewReader(file), nil)
 	parser := p.NewParser(lexer)
 	definitions := make(map[string]*Bytecode)
@@ -29,10 +32,12 @@ func Compile(file *os.File) (map[string]*Bytecode, error) {
 		ast, err = parser.Definition()
 		if fd, ok := ast.(p.FunDef); ok {
 			name := fd.Name.Name()
-			compiler := NewCompiler()
+			compiler := NewCompiler(globals)
 			fd.Accept(compiler)
 			bytecode := compiler.Finish()
 			definitions[name] = &bytecode
+			globals[fd.Name] = &bytecode
+			Disassemble(name, bytecode.Bytes, bytecode.Constants, os.Stdout)
 		}
 	}
     if !p.IsEof(err) {
@@ -48,6 +53,7 @@ type Compiler struct {
 	Args int
 	Constants []Value
 	Bytes []byte
+	Globals map[Value]Value
 }
 
 type LocalInfo struct {
@@ -90,11 +96,29 @@ func (c *Compiler) OffsetOf(newLocal p.Identifier) (int, bool) {
 	return offset, false
 }
 
-func NewCompiler() *Compiler {
+func (c *Compiler) FindGlobal(v Value) (Value, bool) {
+	obj, ok := c.Globals[v]
+	if ok {
+		return obj, true
+	} else {
+		return nil, false
+	}
+}
+
+func (c *Compiler) PushConstant(value Value) {
+	index := len(c.Constants)
+	c.Constants = append(c.Constants, value)
+	if index > 255 { panic("Maximum number of program literals reached.")}
+	c.Write(ConstOp)
+	c.Write(byte(index))
+}
+
+func NewCompiler(globals map[Value]Value) *Compiler {
 	c := new(Compiler)
 	c.idents = make([]LocalInfo, 0)
 	c.Constants = make([]Value, 0)
 	c.Bytes = make([]byte, 0)
+	c.Globals = globals
 	return c
 }
 
@@ -119,7 +143,12 @@ func (c *Compiler) VisitDelimeter(_ p.Delimeter) {
 func (c *Compiler) VisitIdentifier(ident p.Identifier) {
 	offset, ok := c.OffsetOf(ident)
 	if !ok {
-		panic("variable used before declared")
+		obj, ok := c.FindGlobal(ident)
+		if !ok {
+			panic("Variable undefined.")
+		}
+		c.PushConstant(obj)
+		return
 	}
 	c.Write(LoadOp)
 	c.Write(byte(offset))
@@ -210,32 +239,74 @@ func (c *Compiler) VisitExprStmt(es p.ExprStmt) {
 	es.Expr.Accept(c)
 	c.Write(PopOp)
 }
-
-func Disassemble(bytes []byte, constants []Value) string {
-	s := ""
+func Disassemble(name string, bytes []byte, constants []Value, w io.Writer) {
+	fmt.Fprintf(w, "ASSEMBLY %s\n", name)
 	for i := 0; i < len(bytes); i++ {
 		switch bytes[i] {
 		case ConstOp:
 			arg := bytes[i + 1]
-			i += 1
-			s = s + fmt.Sprintf("const %v\n", constants[arg])
+			if bc, ok := constants[arg].(*Bytecode); ok {
+				fmt.Fprintf(w, "const %s", ":" + bc.Name.Name())
+			} else {
+				fmt.Fprintf(w, "const %v", constants[arg])
+			}
+			i+=1
 		case MulOp:
-			s = s + "mul\n"
+			fmt.Fprintf(w, "opmul ")
 		case AddOp:
-			s = s + "add\n"
+			fmt.Fprintf(w, "opadd ")
 		case SubOp:
-			s = s + "sub\n"
+			fmt.Fprintf(w, "opsub ")
 		case DivOp:
-			s = s + "div\n"
+			fmt.Fprintf(w, "opdiv ")
 		case LoadOp:
 			arg := bytes[i + 1]
 			i += 1
-			s = s + fmt.Sprintf("load $%v\n", arg)
+			fmt.Fprintf(w, "load $%v ", arg)
 		case PopOp:
-			s = s + "pop\n"
+			fmt.Fprintf(w, "pop ")
+		case CallOp:
+			fmt.Fprintf(w, "call #%d", bytes[i + 1])
+			i +=1 	
+		case Ret0Op: fmt.Fprintf(w, "return")
+		case Ret1Op: fmt.Fprintf(w, "return1")
+		case LoadGlobalOp: fmt.Fprintf(w, "loadGlobal")
 		default:
 			panic("Unknown opcode encountered.")
 		}
+		fmt.Fprintf(w, "\n")
 	}
-	return s
+	fmt.Fprintf(w, "\n")
 }
+
+func Decode(bytes []byte, constants []Value, w io.Writer) {
+	switch bytes[0] {
+	case ConstOp:
+		arg := bytes[1]
+		if bc, ok := constants[arg].(*Bytecode); ok {
+			fmt.Fprintf(w, "const %s", ":" + bc.Name.Name())
+		} else {
+			fmt.Fprintf(w, "const %v", constants[arg])
+		}
+	case MulOp:
+		fmt.Fprintf(w, "opmul ")
+	case AddOp:
+		fmt.Fprintf(w, "opadd ")
+	case SubOp:
+		fmt.Fprintf(w, "opsub ")
+	case DivOp:
+		fmt.Fprintf(w, "opdiv ")
+	case LoadOp:
+		arg := bytes[1]
+		fmt.Fprintf(w, "load $%v ", arg)
+	case PopOp:
+		fmt.Fprintf(w, "pop ")
+	case CallOp:
+		fmt.Fprintf(w, "call #%d", bytes[1])
+	case Ret0Op: fmt.Fprintf(w, "return")
+	case Ret1Op: fmt.Fprintf(w, "return1")
+	case LoadGlobalOp: fmt.Fprintf(w, "loadGlobal")
+	default:
+		panic("Unknown opcode encountered.")
+	}
+}	

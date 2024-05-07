@@ -53,7 +53,8 @@ func TestFunctions(t *testing.T) {
 		return
 	}
 	defer file.Close()
-	definitions, err := c.Compile(file)
+	vm := NewVm()
+	definitions, err := c.Compile(vm.Globals(), file)
 	if err != nil {
 		t.Error(err.Error())
 	}
@@ -62,9 +63,8 @@ func TestFunctions(t *testing.T) {
 		t.Error("File was not successfully compiled.")
 		return
 	}
-	vm := NewVm()
-	vm.Run(f, 1.0, 2.0)
-	if vm.Result() != 16.0 {
+	vm.Run(f, 2.0, 3.0)
+	if vm.Result() != 320.0 {
 		t.Fail() 
 	}
 }
