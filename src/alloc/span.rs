@@ -126,6 +126,7 @@ const SPAN_BITS_SIZE: usize = 64;
 type SpanBits = [u8; SPAN_BITS_SIZE];
 
 // Metadata for a continuous run of pages for allocating objects of size obj_size
+// TODO: Allocate Spanbits separately instead of inline? 
 pub struct Span {
     pub base: *mut u8,
     pub pages: u8,

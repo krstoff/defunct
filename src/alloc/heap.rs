@@ -2,6 +2,7 @@ use super::{NUM_SIZE_CLASSES, MAX_SMALL_OBJ_SIZE};
 use super::span::{Span, get_size_class, get_obj_size, get_alloc_pages};
 use super::Arena;
 
+// TODO: Implement partial and full as Chunked Lists
 pub struct SpanSet {
     pages: usize,
     obj_size: usize,
@@ -38,6 +39,7 @@ impl SpanSet {
 }
 
 pub struct Heap {
+    // TODO: Doubly linked list for this part?
     page_arenas: Vec<Arena>,
     span_sets: Vec<SpanSet>
 }
@@ -70,6 +72,7 @@ impl Heap {
 
     }
 
+    // TODO: just default to system calculator?
     pub fn alloc_large(&mut self, size: usize) -> *mut u8 {
         return std::ptr::null_mut();
     }
