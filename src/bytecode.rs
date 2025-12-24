@@ -5,6 +5,7 @@ use crate::values::Val;
 pub enum OpCode {
     Const,   // const n {} -> {frame.constants[n]}
     Pop,         // pop n {..n} -> {}
+    Dup,         // dup n {i_1, i_n, ... } -> {i_1, i_n, ..., i_n}
 
     Add,         // {num a, num b} -> {a + b}
     Sub,         // {num a, num b} -> {a - b}
@@ -16,7 +17,9 @@ pub enum OpCode {
     Gte,         // {num a, num b} -> { a >= b } 
     Eq,          // {num a, num b} -> { a == b }
 
-    BrNil,       // Checks for nil and jumps to ip
+    BrNil,       // brnil ip. Checks for nil and jumps to ip
+    Call,        // call n {a, b, c, ..., f} -> {f(a, b, c, ...)}
+    Ret,         // ret n {i_1, i_2, i_n, ...} -> {i_n}; pop call frame
 
     Halt,        // {v} -> {}; break v;
     // Halt MUST be the last op-code in order for fn to_op to work!
@@ -46,7 +49,7 @@ impl std::fmt::Debug for ByteCode {
                     write!(f, "{}, ", val.get_num().unwrap())?
                 }
                 else {
-                    write!(f, "{:x}, ", val as *const Val as usize)?
+                    write!(f, "{:x}, ", unsafe { std::mem::transmute::<_, usize>(*val) })?
                 }
             }
         }
@@ -60,36 +63,30 @@ impl std::fmt::Debug for ByteCode {
                         write!(f, "const #{}\n", (*self.code)[i + 1])?;
                         i += 1;
                     }
-                    Add => {
-                        write!(f, "add\n")?;
+                    Dup => {
+                        write!(f, "dup #{}\n", (*self.code)[i+1])?;
+                        i += 1;
                     }
-                    Sub => {
-                        write!(f, "sub\n")?;
-                    }
-                    Mul => {
-                        write!(f, "mul\n")?;
-                    }
-                    Div => {
-                        write!(f, "div\n")?;
-                    }
-                    Gt => {
-                        write!(f, "gt\n")?;
-                    }
-                    Lt => {
-                        write!(f, "lt\n")?;
-                    }
-                    Gte => {
-                        write!(f, "gte\n")?;
-                    }
-                    Lte => {
-                        write!(f, "lte\n")?;
-                    }
-                    Eq => {
-                        write!(f, "eq\n")?;
-                    }
+                    Add => { write!(f, "add\n")?; }
+                    Sub => { write!(f, "sub\n")?; }
+                    Mul => { write!(f, "mul\n")?; }
+                    Div => { write!(f, "div\n")?; }
+                    Gt => { write!(f, "gt\n")?; }
+                    Lt => { write!(f, "lt\n")?; }
+                    Gte => { write!(f, "gte\n")?; }
+                    Lte => { write!(f, "lte\n")?; }
+                    Eq => { write!(f, "eq\n")?; }
                     BrNil => {
                         write!(f, "brnil #{}\n", (*self.code)[i+1])?;
                         i += 1;
+                    }
+                    Call => {
+                        write!(f, "call #{}\n", (*self.code)[i+1])?;
+                        i += 1;
+                    }
+                    Ret => {
+                        write!(f, "ret #{}\n", (*self.code)[i+1])?;
+                        i +=1 ;
                     }
                     Halt => {
                         write!(f, "halt\n")?

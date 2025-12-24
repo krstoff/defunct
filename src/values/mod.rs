@@ -3,6 +3,10 @@
 /// a double-precision float. 
 /// Pointers themselves are also tagged with type information in the low-bits.
 
+mod closures;
+
+pub use closures::Closure;
+
 #[derive(Copy, Clone, Debug)]
 #[repr(u8)]
 pub enum Tag {
@@ -62,30 +66,6 @@ const HIGHTAG_MASK: u64 = 0xFFFF_0000_0000_0000;
 #[derive(Copy, Clone, PartialEq)]
 pub struct Val(u64);
 
-impl std::fmt::Debug for Val {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        use Tag::*;
-        if self.is_int() {
-            write!(f, "{}", self.get_int().unwrap())
-        } else if self.is_ptr() {
-            let (t, p) = self.get_ptr().unwrap().to_raw();
-            let tag_str = match t {
-                Symbol => "sym",
-                Function => "fun",
-                Cons => "cons",
-                Array => "vec",
-                Map => "map",
-                Object => "obj",
-                Error => "err",
-                Other => "?"
-            };
-            write!(f, "<{} {:x}>", tag_str, p)
-        } else {
-            write!(f, "{}f", self.get_num().unwrap())
-        }
-    }
-}
-
 impl Val {
     pub fn from_num(num: f64) -> Val {
         let rotated = num.to_bits().wrapping_add(1 << 48);
@@ -144,6 +124,61 @@ impl Val {
             Some(unsafe { std::mem::transmute(bits) })
         } else {
             None
+        }
+    }
+
+    pub fn get(&self) -> Cases {
+        if self.is_int() {
+            return Cases::Int(self.get_int().unwrap())
+        }
+
+        if self.is_num() {
+            return Cases::Num(self.get_num().unwrap())
+        }
+        
+        let (tag, ptr) = self.get_ptr().unwrap().to_raw();
+        match tag {
+            Tag::Function => {
+                Cases::Function(ptr as *const _)
+            }
+            _ => unimplemented!()
+        }
+    }
+}
+
+pub enum Cases {
+    Int(u32),
+    Num(f64),
+    Symbol(),
+    Function(*const Closure),
+    Cons(),
+    Array(),
+    Map(),
+    Object(),
+    Error(),
+    Other(),
+}
+
+impl std::fmt::Debug for Val {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        use Tag::*;
+        if self.is_int() {
+            write!(f, "{}", self.get_int().unwrap())
+        } else if self.is_ptr() {
+            let (t, p) = self.get_ptr().unwrap().to_raw();
+            let tag_str = match t {
+                Symbol => "sym",
+                Function => "fun",
+                Cons => "cons",
+                Array => "vec",
+                Map => "map",
+                Object => "obj",
+                Error => "err",
+                Other => "?"
+            };
+            write!(f, "<{} {:x}>", tag_str, p)
+        } else {
+            write!(f, "{}f", self.get_num().unwrap())
         }
     }
 }

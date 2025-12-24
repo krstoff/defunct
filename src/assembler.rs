@@ -33,6 +33,18 @@ pub fn compile(text: &str) -> Result<ByteCode, String> {
                 refs.push((code.len() as u8, sym));
                 code.push(0);
             }
+            "dup" => {
+                code.push(Dup as u8);
+                code.push(parse_immediate(words[1])? as u8);
+            }
+            "ret" => {
+                code.push(Ret as u8);
+                code.push(parse_immediate(words[1])? as u8);
+            }
+            "call" => {
+                code.push(Call as u8);
+                code.push(parse_immediate(words[1])? as u8);
+            }
             "add" => {
                 code.push(Add as u8);
             }
@@ -103,6 +115,13 @@ pub fn compile(text: &str) -> Result<ByteCode, String> {
 fn parse_val(s: &str) -> Result<Val, String> {
     let mut chars = s.chars().peekable();
     let first = chars.peek().unwrap();
+    // Expects the next value to be a machine word. That includes tag bits!
+    if *first == '%' {
+        if let Ok(raw) = s[1..].parse::<usize>() {
+            let val = unsafe { std::mem::transmute(raw)};
+            return Ok(val)
+        }
+    }
     if *first == '-' || first.is_ascii_digit() {
         if let Ok(i) = s.parse::<u32>() {
             return Ok(Val::from_int(i));
@@ -112,5 +131,17 @@ fn parse_val(s: &str) -> Result<Val, String> {
         }
     }
     let err_string = "not a valid constant: ".to_string() + s;
+    Err(err_string)
+}
+
+fn parse_immediate(s: &str) -> Result<u8, String> {
+    let mut chars = s.chars().peekable();
+    let first = chars.peek().unwrap();
+    if *first == '#' {
+        if let Ok(i) = s[1..].parse::<u8>() {
+            return Ok(i);
+        }
+    }
+    let err_string = "not a valid immediate: ".to_string() + s;
     Err(err_string)
 }

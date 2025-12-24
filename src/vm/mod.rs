@@ -2,17 +2,20 @@ mod boolean;
 
 use crate::values::Val;
 use crate::alloc::Heap;
-use crate::bytecode::OpCode;
+use crate::bytecode::{OpCode, to_op};
 use crate::vm::boolean::nil;
 
 #[derive(Copy, Clone)]
 struct Frame {
     ip: usize,
+    base: usize,
     constants: *const [Val],
-    code: *const [u8]
+    code: *const [u8],
+    env: *const [Val],
 }
 
 pub struct Vm<'a> {
+    debug: bool,
     heap: &'a mut Heap,
     fp: Frame,
     frames: Vec<Frame>,
@@ -83,7 +86,7 @@ macro_rules! primitive_logic_op {
 
 
 impl<'a> Vm<'a> {
-    pub fn new(heap: &'a mut Heap, entrypoint: crate::bytecode::ByteCode, initargs: &[Val]) -> Vm <'a> {
+    pub fn new(heap: &'a mut Heap, entrypoint: crate::bytecode::ByteCode, initargs: &[Val], debug: bool) -> Vm <'a> {
         let mut values = vec![];
         for val in initargs {
             values.push(*val);
@@ -91,10 +94,12 @@ impl<'a> Vm<'a> {
         let frames = vec![];
         let initial_frame = Frame {
             ip: 0,
+            base: 0,
             constants: entrypoint.consts,
             code: entrypoint.code,
+            env: &[],
         };
-        Vm { fp: initial_frame, frames, values, heap }
+        Vm { debug, fp: initial_frame, frames, values, heap }
     }
 
     pub fn pop(&mut self) -> Val {
@@ -124,12 +129,49 @@ impl<'a> Vm<'a> {
                 self.push(val);
             },
             Pop => { self.pop(); }
+            Dup => {
+                let i = self.take_operand();
+                self.push(self.values[self.fp.base + i as usize]);
+            }
             BrNil => {
                 let val = self.pop();
                 let i = self.take_operand();
                 if val == nil() {
                     self.fp.ip = i as usize;
                 }
+            }
+            Call => {
+                use crate::values::Cases::*;
+                let n = self.take_operand();
+                let f = self.pop();
+                match f.get() {
+                    Function(ptr) => {
+                        self.frames.push(self.fp);
+                        unsafe {
+                            self.fp.code = (*(*ptr).code_obj).code;
+                            self.fp.constants = (*(*ptr).code_obj).consts;
+                            self.fp.env = (*ptr).env;
+                        }
+                        self.fp.ip = 0;
+                        self.fp.base = self.values.len() - n as usize;
+                    }
+                    _ => {
+                        // TODO: TypeError
+                        unimplemented!()
+                    }
+                }
+                
+            }
+            Ret => {
+                assert!(self.frames.len() > 0);
+                let n = self.take_operand();
+                let val = self.values[self.fp.base + n as usize];
+                while self.values.len() > self.fp.base {
+                    self.pop();
+                }
+                self.push(val);
+                let frame = self.frames.pop().unwrap();
+                self.fp = frame;
             }
             Add => primitive_math_op!(self, +),
             Sub => primitive_math_op!(self, -),
@@ -147,10 +189,39 @@ impl<'a> Vm<'a> {
 
     pub fn run(&mut self) -> Val {
         loop {
+            if self.debug {
+                self.print_state();
+            }
             if self.step() {
                 // TODO: collect backtrace if debugging enabled
                 return self.values.pop().expect("VM halted without a final value")
             }
         }
+    }
+
+    pub fn print_state(&self) {
+        use crate::bytecode::OpCode::*;
+        match unsafe { to_op((*self.fp.code)[self.fp.ip]) } {
+            Const => print!("const {}", unsafe{(*self.fp.code)[self.fp.ip + 1]}),
+            Dup => print!("dup {}", unsafe{(*self.fp.code)[self.fp.ip + 1]}),
+            Pop => print!("pop"),
+
+            Add => print!("add"),
+            Sub => print!("sub"),
+            Mul => print!("mul"),
+            Div => print!("div"),
+            Lt => print!("lt"),
+            Gt => print!("gt"),    
+            Lte => print!("lte"), 
+            Gte => print!("gte"),
+            Eq => print!("eq"),
+
+            BrNil => print!("brnil {}", unsafe{(*self.fp.code)[self.fp.ip + 1]}),
+            Call => print!("call {}", unsafe{(*self.fp.code)[self.fp.ip + 1]}),
+            Ret => print!("ret {}", unsafe{(*self.fp.code)[self.fp.ip + 1]}),
+            Halt => print!("halt"),
+        };
+        
+        println!("\t{:?}", &self.values[..])
     }
 }
