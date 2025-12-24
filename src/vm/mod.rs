@@ -1,3 +1,5 @@
+mod boolean;
+
 use crate::values::Val;
 use crate::alloc::Heap;
 use crate::bytecode::OpCode;
@@ -46,6 +48,39 @@ macro_rules! primitive_math_op {
     }}
 }
 
+macro_rules! primitive_logic_op {
+    ($self:expr, $bin_op:tt) => {{
+        use boolean::*;
+        let right = $self.pop();
+        let left = $self.pop();
+
+        if left.is_int() && right.is_int() {
+            let result = left.get_int().unwrap() $bin_op right.get_int().unwrap();
+            
+            $self.push(if result { t() } else { nil() });
+        } 
+                
+        else if left.is_num() && right.is_num() {
+            let result = left.get_num().unwrap() $bin_op right.get_num().unwrap();
+            $self.push(if result { t() } else { nil() });
+        }
+                
+        else if left.is_ptr() || right.is_ptr() {
+            // TODO: TypeErr
+            unimplemented!();
+        }
+
+        else {
+            let result =
+                left.get_int().map(|i| i as f64).or(left.get_num()).unwrap()
+                $bin_op right.get_int().map(|i| i as f64).or(right.get_num()).unwrap();
+            $self.push(if result { t() } else { nil() });
+        }
+                // TODO: TypeErr
+    }}
+}
+
+
 impl<'a> Vm<'a> {
     pub fn new(heap: &'a mut Heap, entrypoint: crate::bytecode::ByteCode, initargs: &[Val]) -> Vm <'a> {
         let mut values = vec![];
@@ -92,6 +127,11 @@ impl<'a> Vm<'a> {
             Sub => primitive_math_op!(self, -),
             Mul => primitive_math_op!(self, *),
             Div => primitive_math_op!(self, /),
+            Lt =>  primitive_logic_op!(self, <),
+            Gt =>  primitive_logic_op!(self, >),
+            Lte =>  primitive_logic_op!(self, <=),
+            Gte =>  primitive_logic_op!(self, >=),
+            Eq =>  primitive_logic_op!(self, ==),
             _ => unimplemented!()
         }
         return false;

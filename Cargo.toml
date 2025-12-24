@@ -4,3 +4,8 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+
+
+[lints.rust]
+# Allows all 'unused' related warnings
+unused = "allow" 
