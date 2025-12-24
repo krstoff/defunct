@@ -16,6 +16,18 @@ pub fn assemble(text: &str) -> Result<ByteCode, String> {
                 code.push(Const as u8);
                 code.push(i as u8);
             }
+            "add" => {
+                code.push(Add as u8);
+            }
+            "sub" => {
+                code.push(Sub as u8);
+            }
+            "mul" => {
+                code.push(Mul as u8);
+            }
+            "div" => {
+                code.push(Div as u8);
+            }
             "gt" => {
                 code.push(Gt as u8);
             }

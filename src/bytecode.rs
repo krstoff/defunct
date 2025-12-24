@@ -61,6 +61,18 @@ impl std::fmt::Debug for ByteCode {
                         write!(f, "const #{}\n", (*self.code)[i + 1])?;
                         i += 1;
                     }
+                    Add => {
+                        write!(f, "add\n")?;
+                    }
+                    Sub => {
+                        write!(f, "sub\n")?;
+                    }
+                    Mul => {
+                        write!(f, "mul\n")?;
+                    }
+                    Div => {
+                        write!(f, "div\n")?;
+                    }
                     Gt => {
                         write!(f, "gt\n")?;
                     }
