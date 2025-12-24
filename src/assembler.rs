@@ -1,20 +1,37 @@
 use crate::{bytecode::ByteCode, values::Val, bytecode::OpCode::*};
 
 pub fn compile(text: &str) -> Result<ByteCode, String> {
+    use std::collections::HashMap;
     let mut code = vec![];
     let mut consts = vec![];
+    let mut symbols = crate::symbols::SymbolTable::new();
+    let mut labels = HashMap::<_, usize>::new();
+    let mut refs = vec![];
 
     let lines = text.lines();
     for line in lines {
         if line == "" { continue }
         let words: Vec<_> = line.split_whitespace().collect();
         if words.len() == 0 { continue } // Who knows? Could happen.
+
+        if words[0].as_bytes()[0] == ('.' as u8) {
+            let sym = symbols.intern(words[0]);
+            labels.insert(sym, code.len());
+            continue;
+        }
         match words[0] {
             "const" => {
                 let i = consts.len();
                 consts.push(parse_val(words[1])?);
                 code.push(Const as u8);
                 code.push(i as u8);
+            }
+            "brnil" => {
+                code.push(BrNil as u8);
+                // Push a 0 into the code stream for now. Patch refs later.
+                let sym = symbols.intern(words[1]);
+                refs.push((code.len() as u8, sym));
+                code.push(0);
             }
             "add" => {
                 code.push(Add as u8);
@@ -51,6 +68,20 @@ pub fn compile(text: &str) -> Result<ByteCode, String> {
         if consts.len() > 255 {
             return Err("Too many constants in assembled code.".to_string());
         }
+        // TODO: need to be able to jmp longer distances!
+        if code.len() > 255 {
+            return Err("Assembled code contains too many instructions.".to_string());
+        }
+    }
+
+    // patch up refs
+    for (i, label) in refs {
+        if !labels.contains_key(&label) {
+            return Err("Referenced a label that does not exist.".to_string())
+        }
+        let dest = labels[&label];
+        assert!(dest < code.len());
+        code[i as usize] = dest as u8;
     }
 
     let code = code.into_boxed_slice();

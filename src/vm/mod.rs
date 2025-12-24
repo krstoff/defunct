@@ -3,6 +3,7 @@ mod boolean;
 use crate::values::Val;
 use crate::alloc::Heap;
 use crate::bytecode::OpCode;
+use crate::vm::boolean::nil;
 
 #[derive(Copy, Clone)]
 struct Frame {
@@ -123,6 +124,13 @@ impl<'a> Vm<'a> {
                 self.push(val);
             },
             Pop => { self.pop(); }
+            BrNil => {
+                let val = self.pop();
+                let i = self.take_operand();
+                if val == nil() {
+                    self.fp.ip = i as usize;
+                }
+            }
             Add => primitive_math_op!(self, +),
             Sub => primitive_math_op!(self, -),
             Mul => primitive_math_op!(self, *),

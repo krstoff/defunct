@@ -59,7 +59,7 @@ impl Ptr {
 
 const HIGHTAG_MASK: u64 = 0xFFFF_0000_0000_0000;
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, PartialEq)]
 pub struct Val(u64);
 
 impl std::fmt::Debug for Val {

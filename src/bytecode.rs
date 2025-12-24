@@ -3,10 +3,8 @@ use crate::values::Val;
 #[derive(Copy, Clone, Debug)]
 #[repr(u8)]
 pub enum OpCode {
-    Const = 4,   // {n} -> {frame.constants[n]}
-    Pop,         // {n} -> {}
-    Load,        // {p} -> {*p}
-    Store,       // {p, v} -> {}; *p = v;
+    Const,   // const n {} -> {frame.constants[n]}
+    Pop,         // pop n {..n} -> {}
 
     Add,         // {num a, num b} -> {a + b}
     Sub,         // {num a, num b} -> {a - b}
@@ -17,6 +15,8 @@ pub enum OpCode {
     Lte,         // {num a, num b} -> { a <= b }
     Gte,         // {num a, num b} -> { a >= b } 
     Eq,          // {num a, num b} -> { a == b }
+
+    BrNil,       // Checks for nil and jumps to ip
 
     Halt,        // {v} -> {}; break v;
     // Halt MUST be the last op-code in order for fn to_op to work!
@@ -53,9 +53,8 @@ impl std::fmt::Debug for ByteCode {
         unsafe {
             f.write_str("\n---CODE---\n");
             let mut i = 0;
-            let mut ip = 0;
             while i < self.code.len() {
-                write!(f, "{}: ", ip)?;
+                write!(f, "{}: ", i)?;
                 match to_op((*self.code)[i]) {
                     Const => {
                         write!(f, "const #{}\n", (*self.code)[i + 1])?;
@@ -88,12 +87,15 @@ impl std::fmt::Debug for ByteCode {
                     Eq => {
                         write!(f, "eq\n")?;
                     }
+                    BrNil => {
+                        write!(f, "brnil #{}\n", (*self.code)[i+1])?;
+                        i += 1;
+                    }
                     Halt => {
                         write!(f, "halt\n")?
                     }
                     _ => unimplemented!()
                 }
-                ip += 1;
                 i += 1;
             }
             f.write_str("---END---\n")
