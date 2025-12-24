@@ -15,7 +15,7 @@ fn main() {
         gt
         halt
     ";
-    let bytecode = assembler::assemble(text).unwrap();
+    let bytecode = assembler::compile(text).unwrap();
     println!("{:?}", bytecode);
     let mut vm = Vm::new(&mut heap, bytecode, &[]);
     println!("Result: {:?}", vm.run());

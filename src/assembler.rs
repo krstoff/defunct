@@ -1,6 +1,6 @@
 use crate::{bytecode::ByteCode, values::Val, bytecode::OpCode::*};
 
-pub fn assemble(text: &str) -> Result<ByteCode, String> {
+pub fn compile(text: &str) -> Result<ByteCode, String> {
     let mut code = vec![];
     let mut consts = vec![];
 
