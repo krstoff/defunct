@@ -31,8 +31,8 @@ fn main() {
     let bits = ptr.get_ptr().unwrap().to_bits();
 
     let entrypoint = assembler::compile(&format!("
-    const -30.0
-    const 0
+    const 30
+    const 30.0
     const %{}
     call #2
     halt

@@ -67,6 +67,10 @@ impl std::fmt::Debug for ByteCode {
                         write!(f, "dup #{}\n", (*self.code)[i+1])?;
                         i += 1;
                     }
+                    Pop => {
+                        write!(f, "pop #{}\n", (*self.code)[i+1])?;
+                        i += 1;   
+                    }
                     Add => { write!(f, "add\n")?; }
                     Sub => { write!(f, "sub\n")?; }
                     Mul => { write!(f, "mul\n")?; }
@@ -91,7 +95,6 @@ impl std::fmt::Debug for ByteCode {
                     Halt => {
                         write!(f, "halt\n")?
                     }
-                    _ => unimplemented!()
                 }
                 i += 1;
             }

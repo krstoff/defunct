@@ -181,7 +181,15 @@ impl<'a> Vm<'a> {
             Gt =>  primitive_logic_op!(self, >),
             Lte =>  primitive_logic_op!(self, <=),
             Gte =>  primitive_logic_op!(self, >=),
-            Eq =>  primitive_logic_op!(self, ==),
+            Eq =>  {
+                let right = self.pop();
+                let left = self.pop();
+                if left == right {
+                    self.push(boolean::t());
+                } else {
+                    self.push(nil());
+                }
+            }
             _ => unimplemented!()
         }
         return false;

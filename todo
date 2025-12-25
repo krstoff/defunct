@@ -1,5 +1,3 @@
-- calls
 - other allocations
-- closures
 - compiler
 - gc
