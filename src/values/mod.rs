@@ -7,6 +7,10 @@ mod closures;
 mod symbols;
 
 pub use closures::Closure;
+pub use symbols::Symbol;
+pub use symbols::SymbolTable;
+
+use crate::values;
 
 #[derive(Copy, Clone, Debug)]
 #[repr(u8)]
@@ -110,8 +114,12 @@ impl Val {
         }
     }
 
-    pub fn from_ptr(ptr: Ptr) -> Val {
-        Val(ptr.to_bits())
+    pub fn from_ptr(tag: Tag, ptr: *const u8) -> Val {
+        fn is_word_aligned(bits: usize) -> bool {
+            bits & 0b111 == 0
+        }
+        assert!(is_word_aligned(ptr as usize));
+        Val(ptr as u64 | (tag as u8) as u64)
     }
 
     pub fn is_ptr(&self) -> bool {
@@ -150,7 +158,7 @@ impl Val {
 pub enum Cases {
     Int(u32),
     Num(f64),
-    Symbol(),
+    Symbol(*const Symbol),
     Function(*const Closure),
     Cons(),
     Array(),
@@ -168,7 +176,19 @@ impl std::fmt::Debug for Val {
         } else if self.is_ptr() {
             let (t, p) = self.get_ptr().unwrap().to_raw();
             let tag_str = match t {
-                Symbol => "sym",
+                Symbol => {
+                    if p as usize == 0 {
+                        write!(f, ":nil");
+                    }
+                    else if p as usize == 1 << 4 {
+                        write!(f, ":t");
+                    }
+                    else {
+                        let sym = unsafe { &*(p as  *const crate::values::Symbol) };
+                        write!(f, ":{}", sym.to_str());
+                    }
+                    return Ok(())
+                }
                 Function => "fun",
                 Cons => "cons",
                 Array => "vec",

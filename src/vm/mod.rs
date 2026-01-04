@@ -1,7 +1,7 @@
 mod boolean;
 
+use crate::global::Global;
 use crate::values::Val;
-use crate::alloc::Heap;
 use crate::bytecode::{OpCode, to_op};
 use crate::vm::boolean::nil;
 
@@ -16,7 +16,7 @@ struct Frame {
 
 pub struct Vm<'a> {
     debug: bool,
-    heap: &'a mut Heap,
+    global: &'a mut Global,
     fp: Frame,
     frames: Vec<Frame>,
     values: Vec<Val>,
@@ -86,7 +86,7 @@ macro_rules! primitive_logic_op {
 
 
 impl<'a> Vm<'a> {
-    pub fn new(heap: &'a mut Heap, entrypoint: crate::bytecode::ByteCode, initargs: &[Val], debug: bool) -> Vm <'a> {
+    pub fn new(global: &'a mut Global, entrypoint: crate::bytecode::ByteCode, initargs: &[Val], debug: bool) -> Vm <'a> {
         let mut values = vec![];
         for val in initargs {
             values.push(*val);
@@ -99,7 +99,7 @@ impl<'a> Vm<'a> {
             code: entrypoint.code,
             env: &[],
         };
-        Vm { debug, fp: initial_frame, frames, values, heap }
+        Vm { debug, fp: initial_frame, frames, values, global }
     }
 
     pub fn pop(&mut self) -> Val {

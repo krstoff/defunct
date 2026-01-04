@@ -1,6 +1,6 @@
-use crate::{bytecode::ByteCode, values::Val, bytecode::OpCode::*};
+use crate::{alloc::Heap, bytecode::{ByteCode, OpCode::*}, global::Global, values::{SymbolTable, Tag, Val}};
 
-pub fn compile(text: &str) -> Result<ByteCode, String> {
+pub fn compile(text: &str, global: &mut Global) -> Result<ByteCode, String> {
     use std::collections::HashMap;
     let mut code = vec![];
     let mut consts = vec![];
@@ -22,7 +22,7 @@ pub fn compile(text: &str) -> Result<ByteCode, String> {
         match words[0] {
             "const" => {
                 let i = consts.len();
-                consts.push(parse_val(words[1])?);
+                consts.push(parse_val(words[1], global)?);
                 code.push(Const as u8);
                 code.push(i as u8);
             }
@@ -112,7 +112,7 @@ pub fn compile(text: &str) -> Result<ByteCode, String> {
     Ok(bytecode)
 }
 
-fn parse_val(s: &str) -> Result<Val, String> {
+fn parse_val(s: &str, global: &mut Global) -> Result<Val, String> {
     let mut chars = s.chars().peekable();
     let first = chars.peek().unwrap();
     // Expects the next value to be a machine word. That includes tag bits!
@@ -129,6 +129,10 @@ fn parse_val(s: &str) -> Result<Val, String> {
         else if let Ok(f) = s.parse::<f64>() {
             return Ok(Val::from_num(f));
         }
+    }
+    if *first == ':' {
+        let ptr = global.intern(&s[1..]);
+        return Ok(Val::from_ptr(Tag::Symbol, ptr as _))    
     }
     let err_string = "not a valid constant: ".to_string() + s;
     Err(err_string)

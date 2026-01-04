@@ -4,14 +4,15 @@ mod vm;
 mod values;
 mod assembler;
 mod symbols;
+mod global;
 
 use vm::Vm;
 use values::{Val, Tag, Ptr, Closure};
 
-use crate::{bytecode::ByteCode};
+use crate::{bytecode::ByteCode, global::Global};
 
 fn main() {
-    let mut heap = alloc::Heap::new();
+    let mut global = Global::new();
     let func_obj = assembler::compile("
     dup #0
     dup #1
@@ -20,26 +21,27 @@ fn main() {
     ret #1
 .gte
     ret #0
-    ").unwrap();
+    ", &mut global).unwrap();
 
     let closure = values::Closure {
         env: &[],
         code_obj: &func_obj
     };
 
-    let ptr = Val::from_ptr(unsafe { Ptr::new(Tag::Function, &closure as *const _ as u64) });
+    let ptr = Val::from_ptr(Tag::Function, &closure as *const _ as *const u8);
     let bits = ptr.get_ptr().unwrap().to_bits();
 
     let entrypoint = assembler::compile(&format!("
     const 30
-    const 30.0
+    const 100 
     const %{}
     call #2
+    const :toodaloo
     halt
-    ", bits)).unwrap();
+    ", bits), &mut global).unwrap();
 
     println!("{:?}", func_obj);
     println!("{:?}", entrypoint);
-    let mut vm = Vm::new(&mut heap, entrypoint, &[], true);
+    let mut vm = Vm::new(&mut global, entrypoint, &[], true);
     println!("Result: {:?}", vm.run());
 }
