@@ -4,6 +4,7 @@
 /// Pointers themselves are also tagged with type information in the low-bits.
 
 mod closures;
+mod symbols;
 
 pub use closures::Closure;
 
