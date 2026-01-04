@@ -11,3 +11,4 @@ use arena::Arena;
 use span::Span;
 
 pub use heap::Heap;
+pub use span::print_size_classes;

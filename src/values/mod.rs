@@ -5,10 +5,14 @@
 
 mod closures;
 mod symbols;
+mod maps;
+mod boolean;
 
 pub use closures::Closure;
 pub use symbols::Symbol;
 pub use symbols::SymbolTable;
+pub use boolean::nil;
+pub use boolean::t;
 
 use crate::values;
 

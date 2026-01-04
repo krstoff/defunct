@@ -11,7 +11,8 @@ pub struct SpanSet {
 }
 
 impl SpanSet {
-    fn new(pages: usize, obj_size: usize) -> SpanSet {
+    fn new(class: usize, obj_size: usize) -> SpanSet {
+        let pages = get_alloc_pages(class);
         SpanSet { pages, obj_size, partial: vec![], full: vec![] }
     }
 
@@ -74,7 +75,7 @@ impl Heap {
 
     // TODO: just default to system calculator?
     pub fn alloc_large(&mut self, size: usize) -> *mut u8 {
-        return std::ptr::null_mut();
+        unimplemented!()
     }
 
     // Gets a new span reservation from a page_arena, allocating a new arena if necessary.

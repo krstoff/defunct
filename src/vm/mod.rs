@@ -1,9 +1,7 @@
-mod boolean;
-
 use crate::global::Global;
 use crate::values::Val;
 use crate::bytecode::{OpCode, to_op};
-use crate::vm::boolean::nil;
+use crate::values::{nil, t};
 
 #[derive(Copy, Clone)]
 struct Frame {
@@ -54,7 +52,6 @@ macro_rules! primitive_math_op {
 
 macro_rules! primitive_logic_op {
     ($self:expr, $bin_op:tt) => {{
-        use boolean::*;
         let right = $self.pop();
         let left = $self.pop();
 
@@ -185,7 +182,7 @@ impl<'a> Vm<'a> {
                 let right = self.pop();
                 let left = self.pop();
                 if left == right {
-                    self.push(boolean::t());
+                    self.push(t());
                 } else {
                     self.push(nil());
                 }

@@ -72,7 +72,7 @@ pub fn get_alloc_pages(class: usize) -> usize {
 
 // For any given size class, we must pick the number of pages to allocate to a span.
 // Go tries to keep the given waste for a size class to be around 1/8 at max.
-pub const fn generate_class_to_alloc_pages() -> [usize; NUM_SIZE_CLASSES] {
+const fn generate_class_to_alloc_pages() -> [usize; NUM_SIZE_CLASSES] {
     let mut table = [0; NUM_SIZE_CLASSES];
     table[0] = 0; // Reserved for large allocations
     let mut class_idx = 1;
