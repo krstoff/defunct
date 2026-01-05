@@ -39,7 +39,7 @@ const HIGHTAG_MASK: usize = 0xFFFF_0000_0000_0000;
 
 // We do not support 32-bit architectures.
 #[cfg(target_pointer_width = "64")]
-#[derive(Copy, Clone, PartialEq)]
+#[derive(Copy, Clone)]
 pub struct Val(*mut u8);
 
 impl Val {
@@ -159,6 +159,47 @@ impl std::fmt::Debug for Val {
             }
             Function(p) => {
                 write!(f, "<fn {:x}>", p.addr())
+            }
+            _ => unimplemented!()
+        }
+    }
+}
+
+impl std::cmp::PartialEq for Val {
+    fn eq(&self, rhs: &Self) -> bool {
+        use Cases::*;
+        match (self.get(), rhs.get()) {
+            (Int(l), Int(r)) => { l == r }
+            (Num(l), Num(r)) => { l == r }
+            (Symbol(l), Symbol(r)) => { l == r }
+            (Function(l), Function(r)) => { l == r }
+            // (Cons(l), Cons(r)) => { l == r }
+            // (Array(l), Array(r)) => { l == r }
+            // (Map(l), Map(r)) => { l == r }
+            // (Object(l), Object(r)) => { l == r }
+            // (Error(l), Error(r)) => { l == r }
+            (_, _) => false,
+        }
+    }
+}
+
+impl std::cmp::Eq for Val {}
+
+impl std::hash::Hash for Val {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        use Cases::*;
+        match self.get() {
+            Int(i) => {
+                state.write_i32(i)
+            }
+            Num(n) => {
+                state.write_u64(n.to_bits())
+            }
+            Symbol(s) => {
+                state.write_usize(s.addr())
+            }
+            Function(f) => {
+                state.write_usize(f.addr())
             }
             _ => unimplemented!()
         }
