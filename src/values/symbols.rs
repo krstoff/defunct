@@ -23,7 +23,7 @@ impl Symbol {
 struct UnsafeStr(pub *const str);
 impl UnsafeStr {
     pub unsafe fn new(s: *const str) -> UnsafeStr {
-        assert!(s as *const () as usize != 0);
+        assert!(s.addr() != 0);
         UnsafeStr(s)
     }
     pub fn to_str(&self) -> &str {
