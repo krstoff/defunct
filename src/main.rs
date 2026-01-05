@@ -6,8 +6,10 @@ mod assembler;
 mod symbols;
 mod global;
 
+use std::ptr;
+
 use vm::Vm;
-use values::{Val, Tag, Ptr, Closure};
+use values::{Val, Tag, Closure};
 
 use crate::{bytecode::ByteCode, global::Global};
 
@@ -23,13 +25,13 @@ fn main() {
     ret #0
     ", &mut global).unwrap();
 
-    let closure = values::Closure {
+    let mut closure = values::Closure {
         env: &[],
         code_obj: &func_obj
     };
 
-    let ptr = Val::from_ptr(Tag::Function, &closure as *const _ as *const u8);
-    let bits = ptr.get_ptr().unwrap().to_bits();
+    let ptr = Val::from_ptr(Tag::Function, &mut closure as *mut _ as *mut u8);
+    let bits = ptr.bits();
 
     let entrypoint = assembler::compile(&format!("
     const 30

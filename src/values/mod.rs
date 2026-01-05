@@ -1,5 +1,5 @@
 /// Virtual machine values representing the complete set of types in defunct.
-/// Uses Webkit's NaN-boxing scheme to encode pointers and 32 bit integers into
+/// Uses Webkit's NaN-boxing scheme to encode pointers and 32 bit signed integers into
 /// a double-precision float. 
 /// Pointers themselves are also tagged with type information in the low-bits.
 
@@ -29,66 +29,40 @@ pub enum Tag {
     Other = 7,
 }
 
-const LOWTAG_MASK: u64 = 0b111;
-
-pub struct Ptr(u64);
-
-impl Ptr {
-    pub fn test_ptr() -> Ptr {
-        Ptr(0xAAAABADD8)
-    }
-
-    pub unsafe fn new(tag: Tag, raw_ptr: u64) -> Ptr {
-        fn is_word_aligned(bits: u64) -> bool {
-            bits & 0b111 == 0
-        }
-        assert!(is_word_aligned(raw_ptr));
-        Ptr(raw_ptr | (tag as u8) as u64)
-    }
-
-    pub fn to_bits(&self) -> u64 {
-        let Ptr(bits) = *self;
-        bits
-    }
-
-    pub fn to_raw(&self) -> (Tag, u64) {
-        use Tag::*;
-        let Ptr(bits) = *self;
-        let tag = match (bits & LOWTAG_MASK) as u8 {
-            0 => Symbol,
-            1 => Function,
-            2 => Cons,
-            3 => Array,
-            4 => Map,
-            5 => Object,
-            6 => Error,
-            7 => Other,
-            _ => unreachable!(),
-        };
-        let ptr = bits & !LOWTAG_MASK;
-        (tag, ptr)
-    }
+fn byte_to_tag(byte: u8) -> Tag {
+    assert!(byte < 8);
+    unsafe { std::mem::transmute(byte) }
 }
 
-const HIGHTAG_MASK: u64 = 0xFFFF_0000_0000_0000;
+const LOWTAG_MASK: usize = 0b111;
+const HIGHTAG_MASK: usize = 0xFFFF_0000_0000_0000;
 
+// We do not support 32-bit architectures.
+#[cfg(target_pointer_width = "64")]
 #[derive(Copy, Clone, PartialEq)]
-pub struct Val(u64);
+pub struct Val(*mut u8);
 
 impl Val {
+    pub fn bits(&self) -> usize {
+        self.0.addr()
+    }
+
     pub fn from_num(num: f64) -> Val {
         let rotated = num.to_bits().wrapping_add(1 << 48);
-        Val(rotated)
+        Val(rotated as *mut u8)
     }
 
+    #[inline(always)]
     pub fn is_num(&self) -> bool {
-        let Val(bits) = *self;
-        bits & HIGHTAG_MASK != HIGHTAG_MASK 
-            && bits & HIGHTAG_MASK != 0
+        let Val(ptr) = *self;
+        let bits = ptr.addr();
+        bits & HIGHTAG_MASK != HIGHTAG_MASK && bits & HIGHTAG_MASK != 0
     }
 
+    #[inline(always)]
     pub fn get_num(&self) -> Option<f64> {
-        let Val(bits) = *self;
+        let Val(ptr) = *self;
+        let bits = ptr.addr() as u64;
         if self.is_num() {
             let num = f64::from_bits(bits.wrapping_sub(1 << 48));
             Some(num)
@@ -98,46 +72,43 @@ impl Val {
         }
     }
 
-    pub fn from_int(int: u32) -> Val {
-        let extended = int as u64;
-        Val(extended | HIGHTAG_MASK)
+    pub fn from_int(int: i32) -> Val {
+        let extended = int as usize;
+        Val((extended | HIGHTAG_MASK) as *mut u8)
     }
 
+    #[inline(always)]
     pub fn is_int(&self) -> bool {
-        let Val(bits) = *self;
+        let Val(ptr) = *self;
+        let bits = ptr.addr();
         bits & HIGHTAG_MASK == HIGHTAG_MASK
     }
 
-    pub fn get_int(&self) -> Option<u32> {
-        let Val(bits) = *self;
+    #[inline(always)]
+    pub fn get_int(&self) -> Option<i32> {
+        let Val(ptr) = *self;
+        let bits = ptr.addr();
         if self.is_int() {
-            Some(bits as u32)
+            Some((bits & !HIGHTAG_MASK) as i32)
         }
         else {
             None
         }
     }
 
-    pub fn from_ptr(tag: Tag, ptr: *const u8) -> Val {
+    pub fn from_ptr(tag: Tag, ptr: *mut u8) -> Val {
         fn is_word_aligned(bits: usize) -> bool {
-            bits & 0b111 == 0
+            bits & LOWTAG_MASK as usize == 0
         }
         assert!(is_word_aligned(ptr as usize));
-        Val(ptr as u64 | (tag as u8) as u64)
+        Val(ptr.map_addr(|bits| (bits | tag as u8 as usize) ))
     }
 
+    #[inline(always)]
     pub fn is_ptr(&self) -> bool {
-        let Val(bits) = *self;
+        let Val(ptr) = *self;
+        let bits = ptr.addr();
         bits & HIGHTAG_MASK == 0
-    }
-
-    pub fn get_ptr(&self) -> Option<Ptr> {
-        let Val(bits) = *self;
-        if self.is_ptr() {
-            Some(unsafe { std::mem::transmute(bits) })
-        } else {
-            None
-        }
     }
 
     pub fn get(&self) -> Cases {
@@ -149,10 +120,14 @@ impl Val {
             return Cases::Num(self.get_num().unwrap())
         }
         
-        let (tag, ptr) = self.get_ptr().unwrap().to_raw();
-        match tag {
+        let tag_bits = (self.0 as usize & LOWTAG_MASK) as u8;
+        let ptr = self.0.map_addr(|addr| addr & !LOWTAG_MASK);
+        match byte_to_tag(tag_bits) {
             Tag::Function => {
                 Cases::Function(ptr as *const _)
+            }
+            Tag::Symbol => {
+                Cases::Symbol(ptr as *const _)
             }
             _ => unimplemented!()
         }
@@ -160,7 +135,7 @@ impl Val {
 }
 
 pub enum Cases {
-    Int(u32),
+    Int(i32),
     Num(f64),
     Symbol(*const Symbol),
     Function(*const Closure),
@@ -174,36 +149,18 @@ pub enum Cases {
 
 impl std::fmt::Debug for Val {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        use Tag::*;
-        if self.is_int() {
-            write!(f, "{}", self.get_int().unwrap())
-        } else if self.is_ptr() {
-            let (t, p) = self.get_ptr().unwrap().to_raw();
-            let tag_str = match t {
-                Symbol => {
-                    if p as usize == 0 {
-                        write!(f, ":nil");
-                    }
-                    else if p as usize == 1 << 4 {
-                        write!(f, ":t");
-                    }
-                    else {
-                        let sym = unsafe { &*(p as  *const crate::values::Symbol) };
-                        write!(f, ":{}", sym.to_str());
-                    }
-                    return Ok(())
-                }
-                Function => "fun",
-                Cons => "cons",
-                Array => "vec",
-                Map => "map",
-                Object => "obj",
-                Error => "err",
-                Other => "?"
-            };
-            write!(f, "<{} {:x}>", tag_str, p)
-        } else {
-            write!(f, "{}f", self.get_num().unwrap())
+        use Cases::*;
+        match self.get() {
+            Int(i) => write!(f, "{}", i),
+            Num(n) => write!(f, "{}f", n),
+            Symbol(p) => {
+                let sym = unsafe { &*p };
+                write!(f, ":{}", sym.to_str())
+            }
+            Function(p) => {
+                write!(f, "<fn {:x}>", p.addr())
+            }
+            _ => unimplemented!()
         }
     }
 }

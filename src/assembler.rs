@@ -123,7 +123,7 @@ fn parse_val(s: &str, global: &mut Global) -> Result<Val, String> {
         }
     }
     if *first == '-' || first.is_ascii_digit() {
-        if let Ok(i) = s.parse::<u32>() {
+        if let Ok(i) = s.parse::<i32>() {
             return Ok(Val::from_int(i));
         }
         else if let Ok(f) = s.parse::<f64>() {

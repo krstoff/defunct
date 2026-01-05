@@ -1,4 +1,5 @@
 use std::ptr;
+use super::{nil, t};
 
 use crate::alloc::Heap;
 
@@ -8,6 +9,12 @@ pub struct Symbol {
 
 impl Symbol {
     pub fn to_str(&self) -> &str {
+        let v = super::Val::from_ptr(super::Tag::Symbol, unsafe { std::mem::transmute(self) });
+        if v == nil() {
+            return "nil"
+        } else if v == t() {
+            return "t"
+        }
         self.name.to_str()
     }
 }
