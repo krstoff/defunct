@@ -39,14 +39,14 @@ impl SpanSet {
     }
 }
 
-pub struct Heap {
+struct HeapInner {
     // TODO: Doubly linked list for this part?
     page_arenas: Vec<Arena>,
     span_sets: Vec<SpanSet>
 }
 
-impl Heap {
-    pub fn new() -> Heap {
+impl HeapInner {
+    pub fn new() -> HeapInner {
         let mut span_sets = vec![];
         for i in 0..NUM_SIZE_CLASSES {
             span_sets.push(
@@ -54,7 +54,7 @@ impl Heap {
             );
         }
         let page_arenas = vec![Arena::new()]; 
-        Heap { page_arenas, span_sets }
+        HeapInner { page_arenas, span_sets }
     }
     
     pub fn alloc(&mut self, size: usize) -> *mut u8 {
@@ -74,12 +74,12 @@ impl Heap {
     }
 
     // TODO: just default to system calculator?
-    pub fn alloc_large(&mut self, size: usize) -> *mut u8 {
+    fn alloc_large(&mut self, size: usize) -> *mut u8 {
         unimplemented!()
     }
 
     // Gets a new span reservation from a page_arena, allocating a new arena if necessary.
-    pub fn alloc_span(&mut self, class: usize) -> Span {
+    fn alloc_span(&mut self, class: usize) -> Span {
         for arena in self.page_arenas.iter_mut() {
             if let Some(base) = arena.try_alloc(get_alloc_pages(class)) {
                 return Span::new(base, class)
@@ -91,5 +91,19 @@ impl Heap {
             .expect("Allocation from a fresh arena should not have failed.");
         self.page_arenas.push(arena);
         Span::new(base, class)
+    }
+}
+
+pub struct Heap {
+    inner: std::cell::RefCell<HeapInner>,
+}
+
+impl Heap {
+    pub fn new() -> Heap {
+        Heap { inner: std::cell::RefCell::new(HeapInner::new()) }
+    }
+    pub fn alloc(&self, size: usize) -> *mut u8 {
+        let mut heap = self.inner.borrow_mut();
+        heap.alloc(size)
     }
 }

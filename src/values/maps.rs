@@ -1,7 +1,8 @@
+use crate::alloc::Heap;
 use crate::values::Val;
 use crate::values::nil;
 
-use std::collections::HashMap;
+use hashbrown::HashMap;
 
 const SMALL_MAP_MAX: usize = 31;
 

@@ -57,14 +57,15 @@ impl  SymbolTable {
             table: std::collections::HashMap::new(),
         }
     }
-    pub fn intern(&mut self, name: &str, heap: &mut Heap) -> *mut Symbol {
+    pub fn intern(&mut self, name: &str) -> *mut Symbol {
+        use crate::HEAP;
         let name = unsafe { UnsafeStr::new(name as *const str) };
         if !self.table.contains_key(&name) {
             unsafe {
                 let mut size = (&*name.0).len();
-                let mut name_copy = heap.alloc(size);
+                let mut name_copy = HEAP.with(|heap| heap.alloc(size));
                 ptr::copy_nonoverlapping((*name.0).as_ptr(), name_copy, size);
-                let mut sym = heap.alloc(size_of::<Symbol>()) as *mut Symbol;
+                let mut sym = HEAP.with(|heap| heap.alloc(size_of::<Symbol>()) as *mut Symbol);
                 *sym = Symbol { name };
                 self.table.insert(name, sym);
             }
@@ -78,16 +79,15 @@ mod test {
     use super::*;
     #[test]
     fn symbols_compare_by_value_not_identity() {
-        let mut heap = Heap::new();
         let first = "HELLO";
         let second = String::from("hello").to_uppercase();
         let third = String::from("Nope");
         let mut table = SymbolTable::new();
 
 
-        let first_symbol = table.intern(first, &mut heap);
-        let second_symbol = table.intern(&second, &mut heap);
-        let third_symbol = table.intern(&third, &mut heap);
+        let first_symbol = table.intern(first);
+        let second_symbol = table.intern(&second);
+        let third_symbol = table.intern(&third);
         assert_eq!(first_symbol, second_symbol);
         assert_ne!(first_symbol, third_symbol);
     }
