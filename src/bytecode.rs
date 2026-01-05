@@ -49,7 +49,7 @@ impl std::fmt::Debug for ByteCode {
                     write!(f, "{}, ", val.get_num().unwrap())?
                 }
                 else {
-                    write!(f, "{:x}, ", unsafe { std::mem::transmute::<_, usize>(*val) })?
+                    write!(f, "{:?}, ", val)?
                 }
             }
         }
