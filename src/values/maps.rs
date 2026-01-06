@@ -2,13 +2,14 @@ use crate::alloc::Heap;
 use crate::values::Val;
 use crate::values::nil;
 
+use hashbrown::DefaultHashBuilder;
 use hashbrown::HashMap;
 
 const SMALL_MAP_MAX: usize = 31;
 
 pub enum Map {
     SmallMap { len: usize, items: [(Val, Val); SMALL_MAP_MAX] },
-    HashMap (HashMap<Val, Val>)
+    HashMap (HashMap<Val, Val, DefaultHashBuilder, Heap>)
 }
 
 impl Map {
@@ -22,7 +23,7 @@ impl Map {
     pub fn insert(&mut self, key: Val, value: Val) {
         match self {
             &mut Map::SmallMap { ref mut len, ref mut items } if *len == SMALL_MAP_MAX => {
-                let mut hashmap = HashMap::new();
+                let mut hashmap = HashMap::new_in(Heap);
                 for i in 0..SMALL_MAP_MAX {
                     let (k, v) = items[i];
                     hashmap.insert(k, v);

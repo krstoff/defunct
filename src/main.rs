@@ -13,10 +13,6 @@ use values::{Val, Tag, Closure};
 
 use crate::{bytecode::ByteCode, global::Global};
 
-thread_local! {
-    static HEAP: alloc::Heap = alloc::Heap::new();
-}
-
 fn main() {
     let mut global = Global::new();
     let func_obj = assembler::compile("

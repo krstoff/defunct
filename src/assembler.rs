@@ -1,4 +1,4 @@
-use crate::{alloc::Heap, bytecode::{ByteCode, OpCode::*}, global::Global, values::{SymbolTable, Tag, Val}};
+use crate::{bytecode::{ByteCode, OpCode::*}, global::Global, values::{SymbolTable, Tag, Val}};
 
 pub fn compile(text: &str, global: &mut Global) -> Result<ByteCode, String> {
     use std::collections::HashMap;

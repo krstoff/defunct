@@ -1,3 +1,6 @@
+use std::ptr::NonNull;
+use allocator_api2::alloc as alloc;
+
 use super::{NUM_SIZE_CLASSES, MAX_SMALL_OBJ_SIZE};
 use super::span::{Span, get_size_class, get_obj_size, get_alloc_pages};
 use super::Arena;
@@ -39,7 +42,7 @@ impl SpanSet {
     }
 }
 
-struct HeapInner {
+pub struct HeapInner {
     // TODO: Doubly linked list for this part?
     page_arenas: Vec<Arena>,
     span_sets: Vec<SpanSet>
@@ -94,16 +97,26 @@ impl HeapInner {
     }
 }
 
-pub struct Heap {
-    inner: std::cell::RefCell<HeapInner>,
-}
+pub struct Heap;
 
 impl Heap {
-    pub fn new() -> Heap {
-        Heap { inner: std::cell::RefCell::new(HeapInner::new()) }
+    pub fn alloc(size: usize) -> *mut u8 {
+        super::HEAP.with(|heap|
+            heap.borrow_mut().alloc(size)
+        )
     }
-    pub fn alloc(&self, size: usize) -> *mut u8 {
-        let mut heap = self.inner.borrow_mut();
-        heap.alloc(size)
+}
+
+unsafe impl alloc::Allocator for Heap {
+    fn allocate(&self, layout: std::alloc::Layout) -> Result<NonNull<[u8]>, alloc::AllocError> {
+        let ptr = super::HEAP.with(|heap|
+            heap.borrow_mut().alloc(layout.size())
+        );
+        let allocation = unsafe { std::slice::from_raw_parts_mut(ptr, layout.size()) };
+        Ok(NonNull::from(allocation))
+    }
+
+    unsafe fn deallocate(&self, ptr: NonNull<u8>, layout: std::alloc::Layout) {
+        // No op for now :)
     }
 }

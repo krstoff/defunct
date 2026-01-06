@@ -12,3 +12,7 @@ use span::Span;
 
 pub use heap::Heap;
 pub use span::print_size_classes;
+
+thread_local! {
+    static HEAP: std::cell::RefCell<heap::HeapInner> = std::cell::RefCell::new(heap::HeapInner::new());
+}

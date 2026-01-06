@@ -1,6 +1,6 @@
-use crate::{alloc::Heap, values::{Symbol, SymbolTable}};
+use allocator_api2::alloc::Allocator;
 
-use crate::HEAP;
+use crate::values::{Symbol, SymbolTable};
 
 pub struct Global {
     pub st: SymbolTable,
@@ -14,9 +14,5 @@ impl Global {
     
     pub fn intern(&mut self, name: &str) -> *mut Symbol {
         self.st.intern(name)
-    }
-
-    pub fn alloc(&self, size: usize) -> *mut u8 {
-        HEAP.with(|heap| heap.alloc(size))
     }
 }

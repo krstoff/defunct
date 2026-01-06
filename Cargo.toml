@@ -5,6 +5,7 @@ edition = "2021"
 
 [dependencies]
 hashbrown = "0.16.1"
+allocator-api2 = "*"
 
 [lints.rust]
 # Allows all 'unused' related warnings

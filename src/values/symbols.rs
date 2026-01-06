@@ -1,8 +1,6 @@
 use std::ptr;
 use super::{nil, t};
 
-use crate::alloc::Heap;
-
 pub struct Symbol {
     name: UnsafeStr,
 }
@@ -58,14 +56,14 @@ impl  SymbolTable {
         }
     }
     pub fn intern(&mut self, name: &str) -> *mut Symbol {
-        use crate::HEAP;
+        use crate::alloc::Heap;
         let name = unsafe { UnsafeStr::new(name as *const str) };
         if !self.table.contains_key(&name) {
             unsafe {
                 let mut size = (&*name.0).len();
-                let mut name_copy = HEAP.with(|heap| heap.alloc(size));
+                let mut name_copy = Heap::alloc(size);
                 ptr::copy_nonoverlapping((*name.0).as_ptr(), name_copy, size);
-                let mut sym = HEAP.with(|heap| heap.alloc(size_of::<Symbol>()) as *mut Symbol);
+                let mut sym = Heap::alloc(size_of::<Symbol>()) as *mut Symbol;
                 *sym = Symbol { name };
                 self.table.insert(name, sym);
             }
