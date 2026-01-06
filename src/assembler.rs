@@ -73,7 +73,19 @@ pub fn compile(text: &str, global: &mut Global) -> Result<ByteCode, String> {
                 code.push(Eq as u8);
             }
             "halt" => {
-                code.push(Halt as u8)
+                code.push(Halt as u8);
+            }
+            "mapget" => {
+                code.push(MapGet as u8);
+            }
+            "mapset" => {
+                code.push(MapSet as u8);
+            }
+            "mapdel" => {
+                code.push(MapDel as u8);
+            }
+            "mapnew" => {
+                code.push(MapNew as u8);
             }
             _ => return Err(line.to_string())
         }

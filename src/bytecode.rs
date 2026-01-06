@@ -21,6 +21,11 @@ pub enum OpCode {
     Call,        // call n {a, b, c, ..., f} -> {f(a, b, c, ...)}
     Ret,         // ret n {i_1, i_2, i_n, ...} -> {i_n}; pop call frame
 
+    MapSet,      // {map m, k, v} -> {}; m[k] = v
+    MapGet,      // {map m, k}    -> {m[k]}
+    MapDel,      // {map m, k} -> deletes m[k]
+    MapNew,      // {} -> {map m}
+
     Halt,        // {v} -> {}; break v;
     // Halt MUST be the last op-code in order for fn to_op to work!
 }
@@ -92,6 +97,10 @@ impl std::fmt::Debug for ByteCode {
                         write!(f, "ret #{}\n", (*self.code)[i+1])?;
                         i +=1 ;
                     }
+                    MapGet => { write!(f, "mapget\n")?; }
+                    MapSet => { write!(f, "mapset\n")?; }
+                    MapDel => { write!(f, "mapdel\n")?; }
+                    MapNew => { write!(f, "mapnew\n")?; }
                     Halt => {
                         write!(f, "halt\n")?
                     }

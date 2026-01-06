@@ -93,6 +93,33 @@ impl Map {
     pub fn clear(&mut self) {
         *self = Map::new();
     }
+
+    pub fn iter(&self) -> Box<dyn Iterator<Item=(Val, Val)> + '_> {
+        match self {
+            &Map::SmallMap { ref len, ref items } => {
+                Box::new(items.iter().take(*len).map(|(k, v)| (*k, *v)))
+            }
+            &Map::HashMap(ref hashmap) => {
+                Box::new(hashmap.iter().take(hashmap.len()).map(|(k, v)| (*k, *v)))
+            }             
+        }
+    }
+}
+
+impl std::fmt::Debug for Map {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{{")?;
+        let mut count = 0;
+        for (k, v) in self.iter() {
+            if count != 0 {
+                write!(f, ", ")?;
+            }
+            write!(f, "{:?} {:?}", k, v)?;
+            count += 1;
+        }
+        write!(f, "}}")?;
+        Ok(())
+    }
 }
 
 #[cfg(test)]

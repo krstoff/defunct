@@ -11,6 +11,7 @@ mod boolean;
 pub use closures::Closure;
 pub use symbols::Symbol;
 pub use symbols::SymbolTable;
+pub use maps::Map;
 pub use boolean::nil;
 pub use boolean::t;
 
@@ -129,6 +130,9 @@ impl Val {
             Tag::Symbol => {
                 Cases::Symbol(ptr as *const _)
             }
+            Tag::Map => {
+                Cases::Map(ptr as *mut _)
+            }
             _ => unimplemented!()
         }
     }
@@ -141,7 +145,7 @@ pub enum Cases {
     Function(*const Closure),
     Cons(),
     Array(),
-    Map(),
+    Map(*mut Map),
     Object(),
     Error(),
     Other(),
@@ -154,11 +158,15 @@ impl std::fmt::Debug for Val {
             Int(i) => write!(f, "{}", i),
             Num(n) => write!(f, "{}f", n),
             Symbol(p) => {
-                let sym = unsafe { &*p };
+                let sym = unsafe { std::mem::transmute::<_, &symbols::Symbol>(p) };
                 write!(f, ":{}", sym.to_str())
             }
             Function(p) => {
                 write!(f, "<fn {:x}>", p.addr())
+            }
+            Map(p) => {
+                let map = unsafe { &*p };
+                write!(f, "{:?}", map)
             }
             _ => unimplemented!()
         }

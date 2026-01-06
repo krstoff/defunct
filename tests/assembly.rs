@@ -1,19 +1,9 @@
-mod alloc;
-mod bytecode;
-mod vm;
-mod values;
-mod assembler;
-mod symbols;
-mod global;
-
-use std::ptr;
-
-use vm::Vm;
-use values::{Val, Tag, Closure};
-
-use crate::{bytecode::ByteCode, global::Global};
-
-fn main() {
+use defunct::global::Global;
+use defunct::{assembler, values};
+use values::Val;
+use values::Tag;
+#[test]
+fn functions() {
     let mut global = Global::new();
     let func_obj = assembler::compile("
     dup #0
@@ -44,6 +34,27 @@ fn main() {
 
     println!("{:?}", func_obj);
     println!("{:?}", entrypoint);
-    let mut vm = Vm::new(&mut global, entrypoint, &[], true);
+    let mut vm = defunct::Vm::new(&mut global, entrypoint, &[], true);
+    println!("Result: {:?}", vm.run());
+}
+
+#[test]
+fn maps() {
+    let mut global = Global::new();
+    let entrypoint = assembler::compile("
+    mapnew
+    dup #0
+    const :age
+    const 30
+    mapset
+    dup #0
+    const :children
+    const 2
+    mapset
+    const :age
+    mapget
+    halt
+    ", &mut global).unwrap();
+    let mut vm = defunct::Vm::new(&mut global, entrypoint, &[], true);
     println!("Result: {:?}", vm.run());
 }

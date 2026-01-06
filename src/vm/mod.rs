@@ -1,5 +1,6 @@
+use crate::alloc::Heap;
 use crate::global::Global;
-use crate::values::Val;
+use crate::values::{Map, Tag, Val};
 use crate::bytecode::{OpCode, to_op};
 use crate::values::{nil, t};
 
@@ -187,6 +188,57 @@ impl<'a> Vm<'a> {
                     self.push(nil());
                 }
             }
+            MapGet => {
+                use crate::values::Cases::*;
+                let key = self.pop();
+                let map = self.pop();
+                match map.get() {
+                    Map(ptr) => {
+                        let m = unsafe {&mut *ptr};
+                        self.push(m.get(key))
+                    }
+                    _ => {
+                        // TODO: TypeError
+                        unimplemented!()
+                    }
+                }
+            }
+            MapSet => {
+                use crate::values::Cases::*;
+                let val = self.pop();
+                let key = self.pop();
+                let map = self.pop();
+                match map.get() {
+                    Map(ptr) => {
+                        let m = unsafe {&mut *ptr};
+                        m.insert(key, val);
+                    }
+                    _ => {
+                        // TODO: TypeError
+                        unimplemented!()
+                    }
+                }
+            }
+            MapNew => {
+                let mut ptr = Heap::alloc(size_of::<Map>()) as *mut _;
+                unsafe { *ptr = Map::new(); }
+                self.push(Val::from_ptr(Tag::Map, ptr as *mut u8));
+            }
+            MapDel => {
+                use crate::values::Cases::*;
+                let key = self.pop();
+                let map = self.pop();
+                match map.get() {
+                    Map(ptr) => {
+                        let m = unsafe {&mut *ptr};
+                        self.push(m.remove(key))
+                    }
+                    _ => {
+                        // TODO: TypeError
+                        unimplemented!()
+                    }
+                }
+            }
             _ => unimplemented!()
         }
         return false;
@@ -224,6 +276,10 @@ impl<'a> Vm<'a> {
             BrNil => print!("brnil {}", unsafe{(*self.fp.code)[self.fp.ip + 1]}),
             Call => print!("call {}", unsafe{(*self.fp.code)[self.fp.ip + 1]}),
             Ret => print!("ret {}", unsafe{(*self.fp.code)[self.fp.ip + 1]}),
+            MapGet => print!("mapget"),
+            MapSet => print!("mapset"),
+            MapNew => print!("mapnew"),
+            MapDel => print!("mapdel"),
             Halt => print!("halt"),
         };
         
