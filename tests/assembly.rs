@@ -58,3 +58,26 @@ fn maps() {
     let mut vm = defunct::Vm::new(&mut global, entrypoint, &[], true);
     println!("Result: {:?}", vm.run());
 }
+
+#[test]
+fn vectors() {
+    let mut global = Global::new();
+    let entrypoint = assembler::compile("
+    vecnew
+    dup #0
+    const :age
+    vecpush
+    dup #0
+    const 30
+    vecpush
+    dup #0
+    const :children
+    vecpush
+    dup #0 
+    const 2
+    vecpush
+    halt
+    ", &mut global).unwrap();
+    let mut vm = defunct::Vm::new(&mut global, entrypoint, &[], true);
+    println!("Result: {:?}", vm.run());
+}

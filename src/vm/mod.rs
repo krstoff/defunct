@@ -1,6 +1,6 @@
 use crate::alloc::Heap;
 use crate::global::Global;
-use crate::values::{Map, Tag, Val};
+use crate::values::{Map, Tag, Val, Vector};
 use crate::bytecode::{OpCode, to_op};
 use crate::values::{nil, t};
 
@@ -221,7 +221,7 @@ impl<'a> Vm<'a> {
             }
             MapNew => {
                 let mut ptr = Heap::alloc(size_of::<Map>()) as *mut _;
-                unsafe { *ptr = Map::new(); }
+                unsafe { std::ptr::write(ptr, Map::new()); }
                 self.push(Val::from_ptr(Tag::Map, ptr as *mut u8));
             }
             MapDel => {
@@ -239,7 +239,71 @@ impl<'a> Vm<'a> {
                     }
                 }
             }
-            _ => unimplemented!()
+            VecNew => {
+                let mut ptr = Heap::alloc(size_of::<Vector>()) as *mut _;
+                unsafe { std::ptr::write(ptr, Vector::new()); }
+                self.push(Val::from_ptr(Tag::Vector, ptr as *mut u8));
+            }
+            VecGet => {
+                use crate::values::Cases;
+                let index = self.pop();
+                let vec = self.pop();
+                match (vec.get(), index.get()) {
+                    (Cases::Vector(ptr), Cases::Int(i))  if i >= 0 => {
+                        let v = unsafe {&mut *ptr};
+                        self.push(v.get(i as usize));
+                    }
+                    _ => {
+                        // TODO: TypeError
+                        unimplemented!()
+                    }
+                }
+            }
+            VecSet => {
+                use crate::values::Cases;
+                let value = self.pop();
+                let index = self.pop();
+                let vec = self.pop();
+                match (vec.get(), index.get()) {
+                    (Cases::Vector(ptr), Cases::Int(i))  if i >= 0 => {
+                        let v = unsafe {&mut *ptr};
+                        v.set(i as usize, value);
+                    }
+                    _ => {
+                        // TODO: TypeError
+                        unimplemented!()
+                    }
+                }
+            }
+            VecPush => {
+                use crate::values::Cases;
+                let value = self.pop();
+                let vec = self.pop();
+                match vec.get() {
+                    Cases::Vector(ptr) => {
+                        let v = unsafe {&mut *ptr};
+                        v.push(value);                      
+                    }
+                    _ => {
+                        // TODO: TypeError
+                        unimplemented!()
+                    }
+                }
+            }
+            VecPop => {
+                use crate::values::Cases;
+                let vec = self.pop();
+                match vec.get() {
+                    Cases::Vector(ptr) => {
+                        let v = unsafe {&mut *ptr};
+                        self.push(v.pop());                       
+                    }
+                    _ => {
+                        // TODO: TypeError
+                        unimplemented!()
+                    }
+                }
+            }
         }
         return false;
     }
@@ -280,6 +344,11 @@ impl<'a> Vm<'a> {
             MapSet => print!("mapset"),
             MapNew => print!("mapnew"),
             MapDel => print!("mapdel"),
+            VecNew => print!("vecnew"),
+            VecGet => print!("vecget"),
+            VecSet => print!("vecset"),
+            VecPop => print!("vecpop"),
+            VecPush => print!("vecpush"),
             Halt => print!("halt"),
         };
         

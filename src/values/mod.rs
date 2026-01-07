@@ -7,6 +7,7 @@ mod closures;
 mod symbols;
 mod maps;
 mod boolean;
+mod vectors;
 
 pub use closures::Closure;
 pub use symbols::Symbol;
@@ -14,6 +15,7 @@ pub use symbols::SymbolTable;
 pub use maps::Map;
 pub use boolean::nil;
 pub use boolean::t;
+pub use vectors::Vector;
 
 use crate::values;
 
@@ -23,7 +25,7 @@ pub enum Tag {
     Symbol = 0,
     Function = 1,
     Cons = 2,
-    Array = 3,
+    Vector = 3,
     Map = 4,
     Object = 5,
     Error = 6,
@@ -133,6 +135,9 @@ impl Val {
             Tag::Map => {
                 Cases::Map(ptr as *mut _)
             }
+            Tag::Vector => {
+                Cases::Vector(ptr as *mut _)
+            }
             _ => unimplemented!()
         }
     }
@@ -144,7 +149,7 @@ pub enum Cases {
     Symbol(*const Symbol),
     Function(*const Closure),
     Cons(),
-    Array(),
+    Vector(*mut Vector),
     Map(*mut Map),
     Object(),
     Error(),
@@ -167,6 +172,10 @@ impl std::fmt::Debug for Val {
             Map(p) => {
                 let map = unsafe { &*p };
                 write!(f, "{:?}", map)
+            }
+            Vector(p) => {
+                let vec = unsafe { &*p };
+                write!(f, "{:?}", vec)
             }
             _ => unimplemented!()
         }

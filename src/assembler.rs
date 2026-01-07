@@ -87,6 +87,21 @@ pub fn compile(text: &str, global: &mut Global) -> Result<ByteCode, String> {
             "mapnew" => {
                 code.push(MapNew as u8);
             }
+            "vecnew" => {
+                code.push(VecNew as u8);
+            }
+            "vecget" => {
+                code.push(VecGet as u8);
+            }
+            "vecset" => {
+                code.push(VecSet as u8);
+            }
+            "vecpop" => {
+                code.push(VecPop as u8);
+            }
+            "vecpush" => {
+                code.push(VecPush as u8);
+            }
             _ => return Err(line.to_string())
         }
         if consts.len() > 255 {

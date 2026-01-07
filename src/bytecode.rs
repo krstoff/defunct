@@ -26,6 +26,12 @@ pub enum OpCode {
     MapDel,      // {map m, k} -> deletes m[k]
     MapNew,      // {} -> {map m}
 
+    VecNew,
+    VecSet,
+    VecGet,
+    VecPush,
+    VecPop,
+
     Halt,        // {v} -> {}; break v;
     // Halt MUST be the last op-code in order for fn to_op to work!
 }
@@ -101,6 +107,12 @@ impl std::fmt::Debug for ByteCode {
                     MapSet => { write!(f, "mapset\n")?; }
                     MapDel => { write!(f, "mapdel\n")?; }
                     MapNew => { write!(f, "mapnew\n")?; }
+                    VecNew => { write!(f, "vecnew\n")?; }
+                    VecSet => { write!(f, "vecset\n")?; }
+                    VecGet => { write!(f, "vecget\n")?; }
+                    VecPush => { write!(f, "vecpush\n")?; }
+                    VecPop => { write!(f, "vecpop\n")?; }
+                    
                     Halt => {
                         write!(f, "halt\n")?
                     }
