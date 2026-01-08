@@ -55,7 +55,7 @@ fn maps() {
     mapget
     halt
     ", &mut global).unwrap();
-    let mut vm = defunct::Vm::new(&mut global, entrypoint, &[], true);
+    let mut vm = defunct::Vm::new(&mut global, entrypoint, &[], false);
     println!("Result: {:?}", vm.run());
 }
 
@@ -78,6 +78,6 @@ fn vectors() {
     vecpush
     halt
     ", &mut global).unwrap();
-    let mut vm = defunct::Vm::new(&mut global, entrypoint, &[], true);
+    let mut vm = defunct::Vm::new(&mut global, entrypoint, &[], false);
     println!("Result: {:?}", vm.run());
 }

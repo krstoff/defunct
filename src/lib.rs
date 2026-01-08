@@ -5,6 +5,7 @@ pub mod values;
 pub mod assembler;
 mod symbols;
 pub mod global;
+pub mod compiler;
 
 use std::ptr;
 
