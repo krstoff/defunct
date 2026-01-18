@@ -5,15 +5,48 @@ use super::Sexp;
 use super::{SymbolTable, Symbol};
 
 #[derive(Debug)]
-pub enum ReadError {
+enum ReadErrorReason {
     UnexpectedChar(char),
     NumberParseErr(String),
+    UnbalancedBracket,
+    UnbalancedParen,
     EOF
 }
-use ReadError::*;
+use ReadErrorReason::*;
+
+pub struct ReadError {
+    line: usize,
+    col: usize,
+    reason: ReadErrorReason,
+}
+
+impl std::fmt::Debug for ReadError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}:{} - ", self.line, self.col)?;
+        match self.reason {
+            UnexpectedChar(c) => {
+                write!(f, "Did not expect character {}", c)
+            },
+            NumberParseErr(ref digits) => {
+                write!(f, "{} is not a valid number", digits)
+            },
+            UnbalancedBracket => {
+                write!(f, "Encountered unexpected ']' character; count your brackets")
+            }
+            UnbalancedParen => {
+                write!(f, "Encountered unexpected ')' character; count your parens")
+            }
+            EOF => {
+                write!(f, "Unexpected end of file")
+            }
+        }
+    }
+}
 
 struct Reader<'src, 'sym> {
     src: &'src str,
+    line: usize,
+    col: usize,
     chars: std::iter::Peekable<std::str::CharIndices<'src>>,
     symbols: &'sym mut SymbolTable<'src>,
 }
@@ -21,10 +54,43 @@ struct Reader<'src, 'sym> {
 impl<'src, 'sym> Reader<'src, 'sym> {
     pub fn new(src: &'src str, symbols: &'sym mut SymbolTable<'src>) -> Reader<'src, 'sym> {
         Reader {
-            src, 
+            src,
+            line: 0,
+            col: 0, 
             chars: src.char_indices().peekable(),
             symbols,
         }
+    }
+
+    fn error(&self, reason: ReadErrorReason) -> ReadError {
+        let (line, col) = self.location();
+        ReadError {
+            line, col, reason 
+        }
+    }
+
+    fn peek(&mut self) -> Option<&(usize, char)> {
+        self.chars.peek()
+    }
+
+    fn next(&mut self) -> Option<(usize, char)> {
+        let peeked = self.chars.peek();
+        match peeked {
+            Some(&(_, '\n')) => {
+                self.line += 1;
+                self.col = 0;
+            },
+            Some(_) => {
+                self.col += 1;
+            }
+            _ => {},
+        }
+        self.chars.next()
+    }
+
+    /// Returns line, column no. in src code.
+    fn location(&self) -> (usize, usize) {
+        (self.line, self.col)
     }
 
     pub fn read(&mut self) -> Result<Sexp, ReadError>  {
@@ -33,10 +99,13 @@ impl<'src, 'sym> Reader<'src, 'sym> {
 
         match self.chars.peek().map(|(i, c)| (*i, *c)) {
             None => {
-                return Err(EOF)
+                return Err(self.error(EOF))
             }
             Some((_, '(')) => {
                 self.read_list()
+            }
+            Some((_, '[')) => {
+                self.read_vector()
             }
             Some((i, c)) if is_symbol_start_char(c) => {
                 self.read_symbol(i)
@@ -45,7 +114,7 @@ impl<'src, 'sym> Reader<'src, 'sym> {
                 self.read_number(i)
             }
             Some((_, c)) => {
-                return Err(UnexpectedChar(c))
+                return Err(self.error(UnexpectedChar(c)))
             }
         }
     }
@@ -56,16 +125,40 @@ impl<'src, 'sym> Reader<'src, 'sym> {
 
         let mut items = Vec::new();
         while let Some((i, c)) = self.chars.peek() && *c != ')' {
+            if *c == ']' {
+                return Err(self.error(UnbalancedBracket))
+            }
             items.push(self.read()?);
             self.trim_whitespace();
         }
 
         // trim ')'
         if let None = self.chars.next() {
-            return Err(ReadError::EOF)
+            return Err(self.error(EOF))
         }
 
         Ok(Sexp::List(items))
+    }
+
+    fn read_vector(&mut self) -> Result<Sexp, ReadError> {
+        self.chars.next(); // trim '['
+        self.trim_whitespace();
+
+        let mut items = Vec::new();
+        while let Some((i, c)) = self.chars.peek() && *c != ']' {
+            if *c == ')' {
+                return Err(self.error(UnbalancedParen))
+            }
+            items.push(self.read()?);
+            self.trim_whitespace();
+        }
+
+        // trim ']'
+        if let None = self.chars.next() {
+            return Err(self.error(EOF))
+        }
+
+        Ok(Sexp::Vector(items))
     }
 
     fn read_symbol(&mut self, start: usize) -> Result<Sexp, ReadError> {
@@ -93,7 +186,7 @@ impl<'src, 'sym> Reader<'src, 'sym> {
         let digits = &self.src[start..last_index + 1];
         match digits.parse::<f64>() {
             Ok(num) => Ok(Sexp::Number(num)),
-            Err(_) => Err(ReadError::NumberParseErr(digits.to_string()))
+            Err(_) => Err(self.error(NumberParseErr(digits.to_string())))
         }
     }
 

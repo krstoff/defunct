@@ -1,4 +1,5 @@
 mod read;
+mod parse;
 mod sexp;
 mod symbols;
 
