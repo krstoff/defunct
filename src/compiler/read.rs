@@ -2,7 +2,7 @@
 
 use std::str::Chars;
 use super::Sexp;
-use super::{SymbolTable, Symbol};
+use super::{IdentTable, Ident};
 
 #[derive(Debug)]
 enum ReadErrorReason {
@@ -43,22 +43,22 @@ impl std::fmt::Debug for ReadError {
     }
 }
 
-struct Reader<'src, 'sym> {
+pub struct Reader<'src, 'sym> {
     src: &'src str,
     line: usize,
     col: usize,
     chars: std::iter::Peekable<std::str::CharIndices<'src>>,
-    symbols: &'sym mut SymbolTable<'src>,
+    idents: &'sym mut IdentTable<'src>,
 }
 
 impl<'src, 'sym> Reader<'src, 'sym> {
-    pub fn new(src: &'src str, symbols: &'sym mut SymbolTable<'src>) -> Reader<'src, 'sym> {
+    pub fn new(src: &'src str, idents: &'sym mut IdentTable<'src>) -> Reader<'src, 'sym> {
         Reader {
             src,
             line: 0,
             col: 0, 
             chars: src.char_indices().peekable(),
-            symbols,
+            idents,
         }
     }
 
@@ -107,11 +107,11 @@ impl<'src, 'sym> Reader<'src, 'sym> {
             Some((_, '[')) => {
                 self.read_vector()
             }
-            Some((i, c)) if is_symbol_start_char(c) => {
-                self.read_symbol(i)
-            }
             Some((i, c)) if is_number_start_char(c) => {
                 self.read_number(i)
+            }
+            Some((i, c)) if is_symbol_start_char(c) => {
+                self.read_symbol(i)
             }
             Some((_, c)) => {
                 return Err(self.error(UnexpectedChar(c)))
@@ -171,7 +171,7 @@ impl<'src, 'sym> Reader<'src, 'sym> {
             self.chars.next();
         }
         let chars = &self.src[start..last_index + 1];
-        Ok(Sexp::Symbol(self.symbols.intern(chars)))
+        Ok(Sexp::Ident(self.idents.intern(chars)))
     }
 
     fn read_number(&mut self, start: usize) -> Result<Sexp, ReadError> {
@@ -197,7 +197,7 @@ impl<'src, 'sym> Reader<'src, 'sym> {
     }
 }
 
-const SYMBOL_CHARS: &'static str = "+-*/:_!";
+const SYMBOL_CHARS: &'static str = "+-*/:_!<>";
 
 fn is_symbol_start_char(c: char) -> bool {
     c.is_alphanumeric() || SYMBOL_CHARS.contains(c)
@@ -217,24 +217,4 @@ fn is_symbol_char(c: char) -> bool {
 
 fn is_whitespace(c: char) -> bool {
     c.is_whitespace() || c == ',' // This is for ease of reading map literals
-}
-
-#[cfg(test)]
-mod test {
-    use super::*;
-    use super::super::sexp::print_sexp;
-    #[test]
-    fn sexp() {
-        let mut symbols = super::SymbolTable::new();
-        let list_str = r"
-        ((defun (add3 x y z)
-          (let ((*sum* (+ x y z))
-            sum))))
-        ";
-        let sexp = {
-            let mut reader = Reader::new(list_str, &mut symbols);
-            reader.read()
-        }.unwrap();
-        print_sexp(&sexp, &symbols);
-    }
 }

@@ -6,15 +6,12 @@
 mod closures;
 mod symbols;
 mod maps;
-mod boolean;
 mod vectors;
 
 pub use closures::Closure;
 pub use symbols::Symbol;
 pub use symbols::SymbolTable;
 pub use maps::Map;
-pub use boolean::nil;
-pub use boolean::t;
 pub use vectors::Vector;
 
 use crate::values;
@@ -37,6 +34,7 @@ fn byte_to_tag(byte: u8) -> Tag {
     unsafe { std::mem::transmute(byte) }
 }
 
+const LOWTAG_BITS: usize = 3;
 const LOWTAG_MASK: usize = 0b111;
 const HIGHTAG_MASK: usize = 0xFFFF_0000_0000_0000;
 
@@ -130,7 +128,7 @@ impl Val {
                 Cases::Function(ptr as *const _)
             }
             Tag::Symbol => {
-                Cases::Symbol(ptr as *const _)
+                Cases::Symbol(unsafe{ std::mem::transmute(ptr) })
             }
             Tag::Map => {
                 Cases::Map(ptr as *mut _)
@@ -146,7 +144,7 @@ impl Val {
 pub enum Cases {
     Int(i32),
     Num(f64),
-    Symbol(*const Symbol),
+    Symbol(Symbol),
     Function(*const Closure),
     Cons(),
     Vector(*mut Vector),
@@ -163,8 +161,7 @@ impl std::fmt::Debug for Val {
             Int(i) => write!(f, "{}", i),
             Num(n) => write!(f, "{}f", n),
             Symbol(p) => {
-                let sym = unsafe { std::mem::transmute::<_, &symbols::Symbol>(p) };
-                write!(f, ":{}", sym.to_str())
+                write!(f, ":{}", p.name())
             }
             Function(p) => {
                 write!(f, "<fn {:x}>", p.addr())
@@ -184,19 +181,7 @@ impl std::fmt::Debug for Val {
 
 impl std::cmp::PartialEq for Val {
     fn eq(&self, rhs: &Self) -> bool {
-        use Cases::*;
-        match (self.get(), rhs.get()) {
-            (Int(l), Int(r)) => { l == r }
-            (Num(l), Num(r)) => { l == r }
-            (Symbol(l), Symbol(r)) => { l == r }
-            (Function(l), Function(r)) => { l == r }
-            // (Cons(l), Cons(r)) => { l == r }
-            // (Array(l), Array(r)) => { l == r }
-            // (Map(l), Map(r)) => { l == r }
-            // (Object(l), Object(r)) => { l == r }
-            // (Error(l), Error(r)) => { l == r }
-            (_, _) => false,
-        }
+        self.0 == rhs.0
     }
 }
 

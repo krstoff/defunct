@@ -1,10 +1,10 @@
-use crate::{bytecode::{ByteCode, OpCode::*}, global::Global, values::{SymbolTable, Tag, Val}};
+use crate::{bytecode::{ByteCode, OpCode::*}, global::Global, values::{Tag, Val}};
 
-pub fn compile(text: &str, global: &mut Global) -> Result<ByteCode, String> {
+pub fn assemble(text: &str, global: &mut Global) -> Result<ByteCode, String> {
     use std::collections::HashMap;
     let mut code = vec![];
     let mut consts = vec![];
-    let mut symbols = crate::symbols::SymbolTable::new();
+    let mut symbols = crate::compiler::IdentTable::new();
     let mut labels = HashMap::<_, usize>::new();
     let mut refs = vec![];
 
@@ -102,6 +102,12 @@ pub fn compile(text: &str, global: &mut Global) -> Result<ByteCode, String> {
             "vecpush" => {
                 code.push(VecPush as u8);
             }
+            "symset" => {
+                code.push(SymSet as u8);
+            }
+            "symget" => {
+                code.push(SymGet as u8);
+            }
             _ => return Err(line.to_string())
         }
         if consts.len() > 255 {
@@ -159,7 +165,7 @@ fn parse_val(s: &str, global: &mut Global) -> Result<Val, String> {
     }
     if *first == ':' {
         let ptr = global.intern(&s[1..]);
-        return Ok(Val::from_ptr(Tag::Symbol, ptr as _))    
+        return Ok(ptr.as_val())    
     }
     let err_string = "not a valid constant: ".to_string() + s;
     Err(err_string)

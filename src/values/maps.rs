@@ -1,6 +1,5 @@
 use crate::alloc::Heap;
-use crate::values::Val;
-use crate::values::nil;
+use crate::values::*;
 
 use hashbrown::DefaultHashBuilder;
 use hashbrown::HashMap;
@@ -16,7 +15,7 @@ impl Map {
     pub fn new() -> Map {
         Map::SmallMap {
             len: 0,
-            items: [(nil(), nil()); SMALL_MAP_MAX]
+            items: [(Symbol::nil(), Symbol::nil()); SMALL_MAP_MAX]
         }
     }
 
@@ -51,11 +50,11 @@ impl Map {
                 if let Some(i) = items.iter().take(*len).position(|(k, v)| key == *k) {
                     items[i].1
                 } else {
-                    nil()
+                    Symbol::nil()
                 }
             }
             &Map::HashMap(ref hashmap) => {
-                *hashmap.get(&key).unwrap_or(&nil())
+                *hashmap.get(&key).unwrap_or(&Symbol::nil())
             }           
         }
     }
@@ -66,19 +65,19 @@ impl Map {
                 if let Some(i) = items.iter().take(*len).position(|(k, v)| key == *k) {
                     let deleted = items[i].1;
                     if i == *len - 1 {
-                        items[i] = (nil(), nil());
+                        items[i] = (Symbol::nil(), Symbol::nil());
                     } else {
                         items[i] = items[*len - 1];
-                        items[*len - 1] = (nil(), nil());
+                        items[*len - 1] = (Symbol::nil(), Symbol::nil());
                     }
                     *len = *len - 1;
                     deleted
                 } else {
-                    nil()
+                    Symbol::nil()
                 }
             }
             &mut Map::HashMap(ref mut hashmap) => {
-                hashmap.remove(&key).unwrap_or(nil())
+                hashmap.remove(&key).unwrap_or(Symbol::nil())
             }           
         }
     }
@@ -157,7 +156,7 @@ mod test {
         let mut map = Map::new();
         map.insert(int(2), int(4));
         map.remove(int(2));
-        assert_eq!(map.get(int(2)), nil());
+        assert_eq!(map.get(int(2)), Symbol::nil());
     }
 
     #[test]
@@ -203,6 +202,6 @@ mod test {
         for i in 0..SMALL_MAP_MAX as i32 {
             map.insert(int(i), int(i));
         }
-        assert_eq!(map.get(int(1000000)), nil());
+        assert_eq!(map.get(int(1000000)), Symbol::nil());
     }
 }

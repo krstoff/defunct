@@ -1,27 +1,84 @@
-use std::ptr;
-use super::{nil, t};
+use crate::values::{LOWTAG_BITS, Tag, Val};
 
-pub struct Symbol {
-    name: UnsafeStr,
-}
+#[derive(Copy, Clone, PartialEq, Eq, Hash)]
+#[repr(transparent)]
+pub struct Symbol(*mut Cell);
+
+const NIL: usize = 0 << LOWTAG_BITS;
+const T: usize = 1 << LOWTAG_BITS;
 
 impl Symbol {
-    pub fn to_str(&self) -> &str {
-        let v = super::Val::from_ptr(super::Tag::Symbol, unsafe { std::mem::transmute(self) });
-        if v == nil() {
-            return "nil"
-        } else if v == t() {
-            return "t"
+    pub fn name(&self) -> &str {
+        let Symbol(ptr) = *self;
+        if ptr.addr() == NIL {
+            "nil"
+        } else if ptr.addr() == T {
+            "t"
+        } else {
+            unsafe { &*(*self.0)._name }
         }
-        self.name.to_str()
+    }
+
+    pub fn val(&self) -> Option<Val> {
+        let Symbol(ptr) = *self;
+        if ptr.addr() == NIL {
+            Some(Self::nil())
+        } else if ptr.addr() == T {
+            Some(Self::t())
+        } else {
+            unsafe {
+                (*self.0)._value
+            }
+        }
+    }
+
+    pub fn set(&mut self, value: Val) {
+        let Symbol(ptr) = *self;
+        if ptr.addr() == NIL {
+            panic!("Cannot assign a value to :nil.");
+        } else if ptr.addr() == T {
+            panic!("Cannot assign a value to :t");
+        } else {
+            unsafe {
+                (*self.0)._value = Some(value)
+            }
+        }
+    }
+
+    pub fn t() -> Val {
+        Val::from_ptr(Tag::Symbol, T as *mut _)
+    }
+
+    pub fn nil() -> Val {
+        Val::from_ptr(Tag::Symbol, NIL as *mut _)
+    }
+
+    pub fn addr(&self) -> usize {
+        self.0.addr()
+    }
+
+    pub fn as_val(&self) -> Val {
+        Val::from_ptr(Tag::Symbol, self.0 as *mut u8)
     }
 }
 
+
+impl std::fmt::Debug for Symbol {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, ":{}", self.name())
+    }
+}
+
+struct Cell {
+    _name: *const str,
+    _value: Option<Val>
+}
+
+/// Wraps a raw str pointer and implements hash, eq by value. Used internally by SymbolTable.
 #[derive(Copy, Clone, Eq)]
-struct UnsafeStr(pub *const str);
+struct UnsafeStr(*const str);
 impl UnsafeStr {
-    pub unsafe fn new(s: *const str) -> UnsafeStr {
-        assert!(s.addr() != 0);
+    pub unsafe fn from_raw(s: *const str) -> UnsafeStr {
         UnsafeStr(s)
     }
     pub fn to_str(&self) -> &str {
@@ -46,7 +103,7 @@ impl std::hash::Hash for UnsafeStr {
 }
 
 pub struct SymbolTable {
-    table: std::collections::HashMap<UnsafeStr, *mut Symbol>,
+    table: std::collections::HashMap<UnsafeStr, Symbol>,
 }
 
 impl  SymbolTable {
@@ -55,17 +112,25 @@ impl  SymbolTable {
             table: std::collections::HashMap::new(),
         }
     }
-    pub fn intern(&mut self, name: &str) -> *mut Symbol {
+
+    /// Takes a &str and checks if it names an existing symbol.
+    /// If not, the string is interned and a fresh symbol is allocated.
+    /// In both cases, the symbol is returned.
+    pub fn intern(&mut self, name: &str) -> Symbol {
         use crate::alloc::Heap;
-        let name = unsafe { UnsafeStr::new(name as *const str) };
+        let name = unsafe { UnsafeStr::from_raw(name as *const str) };
         if !self.table.contains_key(&name) {
             unsafe {
-                let mut size = (&*name.0).len();
-                let mut name_copy = Heap::alloc(size);
-                ptr::copy_nonoverlapping((*name.0).as_ptr(), name_copy, size);
-                let mut sym = Heap::alloc(size_of::<Symbol>()) as *mut Symbol;
-                *sym = Symbol { name };
-                self.table.insert(name, sym);
+                let _name = &*name.0;
+                let mut size = _name.len();
+                let mut name_copy_bytes = Heap::alloc(size);
+                std::ptr::copy_nonoverlapping(_name.as_ptr(), name_copy_bytes, size);
+                let name_copy = std::str::from_utf8_unchecked(std::slice::from_raw_parts(name_copy_bytes as *const _, size));
+
+                let mut cell = Heap::alloc(size_of::<Cell>()) as *mut Cell;
+                std::ptr::write(cell, Cell { _name: name_copy, _value: None });
+
+                self.table.insert(name, Symbol(cell));
             }
         }
         *self.table.get(&name).unwrap()
@@ -86,6 +151,7 @@ mod test {
         let first_symbol = table.intern(first);
         let second_symbol = table.intern(&second);
         let third_symbol = table.intern(&third);
+        assert_eq!(first_symbol, first_symbol);
         assert_eq!(first_symbol, second_symbol);
         assert_ne!(first_symbol, third_symbol);
     }

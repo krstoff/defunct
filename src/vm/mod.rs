@@ -1,8 +1,7 @@
 use crate::alloc::Heap;
 use crate::global::Global;
-use crate::values::{Map, Tag, Val, Vector};
+use crate::values::{Map, Tag, Val, Vector, Symbol};
 use crate::bytecode::{OpCode, to_op};
-use crate::values::{nil, t};
 
 #[derive(Copy, Clone)]
 struct Frame {
@@ -59,12 +58,12 @@ macro_rules! primitive_logic_op {
         if left.is_int() && right.is_int() {
             let result = left.get_int().unwrap() $bin_op right.get_int().unwrap();
             
-            $self.push(if result { t() } else { nil() });
+            $self.push(if result { Symbol::t() } else { Symbol::nil() });
         } 
                 
         else if left.is_num() && right.is_num() {
             let result = left.get_num().unwrap() $bin_op right.get_num().unwrap();
-            $self.push(if result { t() } else { nil() });
+            $self.push(if result { Symbol::t() } else { Symbol::nil() });
         }
                 
         else if left.is_ptr() || right.is_ptr() {
@@ -76,7 +75,7 @@ macro_rules! primitive_logic_op {
             let result =
                 left.get_int().map(|i| i as f64).or(left.get_num()).unwrap()
                 $bin_op right.get_int().map(|i| i as f64).or(right.get_num()).unwrap();
-            $self.push(if result { t() } else { nil() });
+            $self.push(if result { Symbol::t() } else { Symbol::nil() });
         }
                 // TODO: TypeErr
     }}
@@ -126,7 +125,20 @@ impl<'a> Vm<'a> {
                 let val = unsafe { (*self.fp.constants)[i as usize] };
                 self.push(val);
             },
-            Pop => { self.pop(); }
+            Pop => {
+                let count = self.take_operand();
+                for i in 0..count {
+                    self.pop();
+                }
+            }
+            PopSave => {
+                let count = self.take_operand();
+                let val = self.pop();
+                for i in 0..count {
+                    self.pop();
+                }
+                self.push(val);
+            }
             Dup => {
                 let i = self.take_operand();
                 self.push(self.values[self.fp.base + i as usize]);
@@ -134,9 +146,13 @@ impl<'a> Vm<'a> {
             BrNil => {
                 let val = self.pop();
                 let i = self.take_operand();
-                if val == nil() {
+                if val == Symbol::nil() {
                     self.fp.ip = i as usize;
                 }
+            }
+            Jmp => {
+                let i = self.take_operand();
+                self.fp.ip = i as usize;
             }
             Call => {
                 use crate::values::Cases::*;
@@ -183,9 +199,9 @@ impl<'a> Vm<'a> {
                 let right = self.pop();
                 let left = self.pop();
                 if left == right {
-                    self.push(t());
+                    self.push(Symbol::t());
                 } else {
-                    self.push(nil());
+                    self.push(Symbol::nil());
                 }
             }
             MapGet => {
@@ -304,6 +320,41 @@ impl<'a> Vm<'a> {
                     }
                 }
             }
+            SymGet => {
+                use crate::values::Cases;
+                let val = self.pop();
+                match val.get() {
+                    Cases::Symbol(sym) => {
+                        match sym.val() {
+                            Some(symbol_value) => {
+                                self.push(symbol_value)
+                            }
+                            _ => {
+                                // TODO: TypeError
+                                unimplemented!()
+                            }
+                        }
+                    }
+                    _ => {
+                        // TODO: TypeError
+                        unimplemented!()
+                    }
+                }
+            }
+            SymSet => {
+                use crate::values::Cases;
+                let val = self.pop();
+                let sym = self.pop();
+                match sym.get() {
+                    Cases::Symbol(mut sym) => {
+                        sym.set(val);
+                    }
+                    _ => {
+                        // TODO: TypeError
+                        unimplemented!()
+                    }
+                }
+            }
         }
         return false;
     }
@@ -321,36 +372,11 @@ impl<'a> Vm<'a> {
     }
 
     pub fn print_state(&self) {
-        use crate::bytecode::OpCode::*;
-        match unsafe { to_op((*self.fp.code)[self.fp.ip]) } {
-            Const => print!("const {}", unsafe{(*self.fp.code)[self.fp.ip + 1]}),
-            Dup => print!("dup {}", unsafe{(*self.fp.code)[self.fp.ip + 1]}),
-            Pop => print!("pop"),
-
-            Add => print!("add"),
-            Sub => print!("sub"),
-            Mul => print!("mul"),
-            Div => print!("div"),
-            Lt => print!("lt"),
-            Gt => print!("gt"),    
-            Lte => print!("lte"), 
-            Gte => print!("gte"),
-            Eq => print!("eq"),
-
-            BrNil => print!("brnil {}", unsafe{(*self.fp.code)[self.fp.ip + 1]}),
-            Call => print!("call {}", unsafe{(*self.fp.code)[self.fp.ip + 1]}),
-            Ret => print!("ret {}", unsafe{(*self.fp.code)[self.fp.ip + 1]}),
-            MapGet => print!("mapget"),
-            MapSet => print!("mapset"),
-            MapNew => print!("mapnew"),
-            MapDel => print!("mapdel"),
-            VecNew => print!("vecnew"),
-            VecGet => print!("vecget"),
-            VecSet => print!("vecset"),
-            VecPop => print!("vecpop"),
-            VecPush => print!("vecpush"),
-            Halt => print!("halt"),
-        };
+        let op = unsafe { to_op((*self.fp.code)[self.fp.ip]) };
+        print!("{}", op.to_str());
+        if op.has_param() {
+            print!(" #{}", unsafe { (*self.fp.code)[self.fp.ip + 1] })
+        }
         
         println!("\t{:?}", &self.values[..])
     }

@@ -1,11 +1,11 @@
 use defunct::global::Global;
-use defunct::{assembler, values};
+use defunct::{compiler::assemble, values};
 use values::Val;
 use values::Tag;
 #[test]
 fn functions() {
     let mut global = Global::new();
-    let func_obj = assembler::compile("
+    let func_obj = assemble("
     dup #0
     dup #1
     lt
@@ -23,7 +23,7 @@ fn functions() {
     let ptr = Val::from_ptr(Tag::Function, &mut closure as *mut _ as *mut u8);
     let bits = ptr.bits();
 
-    let entrypoint = assembler::compile(&format!("
+    let entrypoint = assemble(&format!("
     const 30
     const 100 
     const %{}
@@ -41,7 +41,7 @@ fn functions() {
 #[test]
 fn maps() {
     let mut global = Global::new();
-    let entrypoint = assembler::compile("
+    let entrypoint = assemble("
     mapnew
     dup #0
     const :age
@@ -62,7 +62,7 @@ fn maps() {
 #[test]
 fn vectors() {
     let mut global = Global::new();
-    let entrypoint = assembler::compile("
+    let entrypoint = assemble("
     vecnew
     dup #0
     const :age

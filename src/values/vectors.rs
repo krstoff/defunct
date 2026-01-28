@@ -50,3 +50,59 @@ impl std::fmt::Debug for Vector {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    #[test]
+    fn basic_vector_usage() {
+        let mut v = Vector::new();
+        for i in 0..100 {
+            v.push(Val::from_int(i));
+        }
+        assert_eq!(Val::from_int(50), v.get(50));
+        assert_eq!(v.len(), Val::from_int(100));
+        v.set(50, Val::from_int(951));
+        assert_eq!(v.get(50), Val::from_int(951));
+        for i in 0..99 {
+            v.pop();
+        }
+        assert_eq!(v.len(), Val::from_int(1));
+        assert_eq!(v.pop(), Val::from_int(0));
+    }
+
+    #[test]
+    #[should_panic]
+    fn no_setting_past_last() {
+        let mut v = Vector::new();
+        for i in 0..100 {
+            v.push(Val::from_int(i));
+        }
+        v.set(100, Val::from_int(1000));
+    }
+
+    #[test]
+    #[should_panic]
+    fn no_getting_past_last() {
+        let mut v = Vector::new();
+        for i in 0..100 {
+            v.push(Val::from_int(i));
+        }
+        v.get(100);
+    }
+
+    #[test]
+    #[should_panic]
+    fn no_popping_after_empty() {
+        let mut v = Vector::new();
+        for i in 0..100 {
+            v.push(Val::from_int(i));
+        }
+
+        for i in 0..100 {
+            v.pop();
+        }
+
+        v.pop();
+    }
+}

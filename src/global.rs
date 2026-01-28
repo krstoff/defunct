@@ -1,5 +1,3 @@
-use allocator_api2::alloc::Allocator;
-
 use crate::values::{Symbol, SymbolTable};
 
 pub struct Global {
@@ -12,7 +10,7 @@ impl Global {
         Global { st }
     }
     
-    pub fn intern(&mut self, name: &str) -> *mut Symbol {
+    pub fn intern(&mut self, name: &str) -> Symbol {
         self.st.intern(name)
     }
 }

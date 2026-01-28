@@ -1,10 +1,10 @@
-use super::Symbol;
-use super::SymbolTable;
+use super::Ident;
+use super::IdentTable;
 
 pub enum Sexp {
     List(Vec<Sexp>),
     Vector(Vec<Sexp>),
-    Symbol(Symbol),
+    Ident(Ident),
     Number(f64),
 }
 
@@ -17,7 +17,7 @@ impl Sexp {
     }
     pub fn is_symbol(&self) -> bool {
         match self {
-            &Sexp::Symbol(..) => true,
+            &Sexp::Ident(..) => true,
             _ => false,
         }
     }
@@ -33,15 +33,15 @@ impl Sexp {
             _ => false,
         }
     }
-    pub fn is(&self, test: Symbol) -> bool {
+    pub fn is(&self, test: Ident) -> bool {
         match self {
-            &Sexp::Symbol(sym) if test == sym => true,
+            &Sexp::Ident(sym) if test == sym => true,
             _ => false,
         }
     }
 }
 
-pub fn print_sexp(sexp: &Sexp, symbol_table: &SymbolTable) {
+pub fn print_sexp(sexp: &Sexp, ident_table: &IdentTable) {
     match sexp {
         &Sexp::List(ref items) => {
             print!("(");
@@ -50,7 +50,7 @@ pub fn print_sexp(sexp: &Sexp, symbol_table: &SymbolTable) {
                 if count != 0 {
                     print!(" ");
                 }
-                print_sexp(i, symbol_table);
+                print_sexp(i, ident_table);
                 count += 1;
             }
             print!(")");
@@ -62,13 +62,13 @@ pub fn print_sexp(sexp: &Sexp, symbol_table: &SymbolTable) {
                 if count != 0 {
                     print!(" ");
                 }
-                print_sexp(i, symbol_table);
+                print_sexp(i, ident_table);
                 count += 1;
             }
             print!("]");
         }
-        &Sexp::Symbol(sym) => {
-            let name = symbol_table.get_name(sym);
+        &Sexp::Ident(sym) => {
+            let name = ident_table.get_name(sym);
             print!("{}", name);
         }
         &Sexp::Number(num) => {

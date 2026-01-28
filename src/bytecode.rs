@@ -5,6 +5,7 @@ use crate::values::Val;
 pub enum OpCode {
     Const,   // const n {} -> {frame.constants[n]}
     Pop,         // pop n {..n} -> {}
+    PopSave,     // popsave n { i_1, ..., i_n, v } -> { v }
     Dup,         // dup n {i_1, i_n, ... } -> {i_1, i_n, ..., i_n}
 
     Add,         // {num a, num b} -> {a + b}
@@ -18,6 +19,7 @@ pub enum OpCode {
     Eq,          // {num a, num b} -> { a == b }
 
     BrNil,       // brnil ip. Checks for nil and jumps to ip
+    Jmp,         // jmp ip.   unconditional jump to ip
     Call,        // call n {a, b, c, ..., f} -> {f(a, b, c, ...)}
     Ret,         // ret n {i_1, i_2, i_n, ...} -> {i_n}; pop call frame
 
@@ -32,6 +34,9 @@ pub enum OpCode {
     VecPush,
     VecPop,
 
+    SymSet,      // { sym s, v } -> {}; s.value = v
+    SymGet,      // { sym s } -> { s.value }
+
     Halt,        // {v} -> {}; break v;
     // Halt MUST be the last op-code in order for fn to_op to work!
 }
@@ -40,6 +45,58 @@ pub fn to_op(code: u8) -> OpCode {
     if code > OpCode::Halt as u8 {
         panic!("Invalid opcode detected.");
     } else { unsafe { std::mem::transmute(code) }}
+}
+
+impl OpCode {
+    pub fn to_str(&self) -> &str {
+        use OpCode::*;
+        match *self {
+            Const => "const",
+            Pop => "pop",
+            PopSave => "popsave",
+            Dup => "dup",
+            Add => "add",
+            Sub => "sub",
+            Mul => "mul",
+            Div => "div",
+            Lt => "lt",
+            Gt => "gt",
+            Gte => "gte",
+            Lte => "lte",
+            Eq => "eq",
+            BrNil => "brnil",
+            Jmp => "jmp",
+            Call => "call",
+            Ret => "ret",
+            MapSet => "mapset",
+            MapGet => "mapget",
+            MapDel => "mapdel",
+            MapNew => "mapnew",
+            VecNew => "vecnew",
+            VecSet => "vecset",
+            VecGet => "vecget",
+            VecPush => "vecpush",
+            VecPop => "vecpop",
+            SymSet => "symset",
+            SymGet => "symget",
+            Halt => "halt",
+        }
+    }
+
+    pub fn has_param(&self) -> bool {
+        use OpCode::*;
+        match *self {
+            Const => true,
+            Pop => true,
+            PopSave => true,
+            Dup => true,
+            BrNil => true,
+            Call => true,
+            Ret => true,
+            Jmp => true,
+            _ => false,
+        }
+    }
 }
 
 pub struct ByteCode {
@@ -68,55 +125,14 @@ impl std::fmt::Debug for ByteCode {
             f.write_str("\n---CODE---\n");
             let mut i = 0;
             while i < self.code.len() {
+                let op =  to_op((*self.code)[i]);
                 write!(f, "{}: ", i)?;
-                match to_op((*self.code)[i]) {
-                    Const => {
-                        write!(f, "const #{}\n", (*self.code)[i + 1])?;
-                        i += 1;
-                    }
-                    Dup => {
-                        write!(f, "dup #{}\n", (*self.code)[i+1])?;
-                        i += 1;
-                    }
-                    Pop => {
-                        write!(f, "pop #{}\n", (*self.code)[i+1])?;
-                        i += 1;   
-                    }
-                    Add => { write!(f, "add\n")?; }
-                    Sub => { write!(f, "sub\n")?; }
-                    Mul => { write!(f, "mul\n")?; }
-                    Div => { write!(f, "div\n")?; }
-                    Gt => { write!(f, "gt\n")?; }
-                    Lt => { write!(f, "lt\n")?; }
-                    Gte => { write!(f, "gte\n")?; }
-                    Lte => { write!(f, "lte\n")?; }
-                    Eq => { write!(f, "eq\n")?; }
-                    BrNil => {
-                        write!(f, "brnil #{}\n", (*self.code)[i+1])?;
-                        i += 1;
-                    }
-                    Call => {
-                        write!(f, "call #{}\n", (*self.code)[i+1])?;
-                        i += 1;
-                    }
-                    Ret => {
-                        write!(f, "ret #{}\n", (*self.code)[i+1])?;
-                        i +=1 ;
-                    }
-                    MapGet => { write!(f, "mapget\n")?; }
-                    MapSet => { write!(f, "mapset\n")?; }
-                    MapDel => { write!(f, "mapdel\n")?; }
-                    MapNew => { write!(f, "mapnew\n")?; }
-                    VecNew => { write!(f, "vecnew\n")?; }
-                    VecSet => { write!(f, "vecset\n")?; }
-                    VecGet => { write!(f, "vecget\n")?; }
-                    VecPush => { write!(f, "vecpush\n")?; }
-                    VecPop => { write!(f, "vecpop\n")?; }
-                    
-                    Halt => {
-                        write!(f, "halt\n")?
-                    }
+                write!(f, "{}", op.to_str())?;
+                if op.has_param() {
+                    write!(f, " #{}", (*self.code)[i+1])?;
+                    i += 1;
                 }
+                write!(f, "\n")?;
                 i += 1;
             }
             f.write_str("---END---\n")

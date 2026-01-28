@@ -2,8 +2,6 @@ mod alloc;
 mod bytecode;
 mod vm;
 pub mod values;
-pub mod assembler;
-mod symbols;
 pub mod global;
 pub mod compiler;
 
@@ -16,7 +14,7 @@ use crate::{bytecode::ByteCode, global::Global};
 
 fn main() {
     let mut global = Global::new();
-    let func_obj = assembler::compile("
+    let func_obj = compiler::assemble("
     dup #0
     dup #1
     lt
@@ -34,7 +32,7 @@ fn main() {
     let ptr = Val::from_ptr(Tag::Function, &mut closure as *mut _ as *mut u8);
     let bits = ptr.bits();
 
-    let entrypoint = assembler::compile(&format!("
+    let entrypoint = compiler::assemble(&format!("
     const 30
     const 100 
     const %{}
