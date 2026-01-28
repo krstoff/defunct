@@ -112,7 +112,7 @@ impl Val {
         bits & HIGHTAG_MASK == 0
     }
 
-    pub fn get(&self) -> Cases {
+    pub fn get<'a>(&'a self) -> Cases<'a> {
         if self.is_int() {
             return Cases::Int(self.get_int().unwrap())
         }
@@ -125,30 +125,30 @@ impl Val {
         let ptr = self.0.map_addr(|addr| addr & !LOWTAG_MASK);
         match byte_to_tag(tag_bits) {
             Tag::Function => {
-                Cases::Function(ptr as *const _)
+                Cases::Function(unsafe { &*(ptr as *const Closure)} )
             }
             Tag::Symbol => {
                 Cases::Symbol(unsafe{ std::mem::transmute(ptr) })
             }
             Tag::Map => {
-                Cases::Map(ptr as *mut _)
+                Cases::Map(unsafe { &mut *(ptr as *mut Map)})
             }
             Tag::Vector => {
-                Cases::Vector(ptr as *mut _)
+                Cases::Vector(unsafe { &mut *(ptr as *mut Vector)})
             }
             _ => unimplemented!()
         }
     }
 }
 
-pub enum Cases {
+pub enum Cases<'a> {
     Int(i32),
     Num(f64),
     Symbol(Symbol),
-    Function(*const Closure),
+    Function(&'a Closure),
     Cons(),
-    Vector(*mut Vector),
-    Map(*mut Map),
+    Vector(&'a mut Vector),
+    Map(&'a mut Map),
     Object(),
     Error(),
     Other(),
@@ -164,15 +164,13 @@ impl std::fmt::Debug for Val {
                 write!(f, ":{}", p.name())
             }
             Function(p) => {
-                write!(f, "<fn {:x}>", p.addr())
+                write!(f, "<fn {:x}>", (p as *const Closure).addr())
             }
             Map(p) => {
-                let map = unsafe { &*p };
-                write!(f, "{:?}", map)
+                write!(f, "{:?}", p)
             }
             Vector(p) => {
-                let vec = unsafe { &*p };
-                write!(f, "{:?}", vec)
+                write!(f, "{:?}", p)
             }
             _ => unimplemented!()
         }
@@ -201,7 +199,7 @@ impl std::hash::Hash for Val {
                 state.write_usize(s.addr())
             }
             Function(f) => {
-                state.write_usize(f.addr())
+                state.write_usize((f as *const Closure).addr())
             }
             _ => unimplemented!()
         }

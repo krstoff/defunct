@@ -209,8 +209,7 @@ impl<'a> Vm<'a> {
                 let key = self.pop();
                 let map = self.pop();
                 match map.get() {
-                    Map(ptr) => {
-                        let m = unsafe {&mut *ptr};
+                    Map(m) => {
                         self.push(m.get(key))
                     }
                     _ => {
@@ -225,8 +224,7 @@ impl<'a> Vm<'a> {
                 let key = self.pop();
                 let map = self.pop();
                 match map.get() {
-                    Map(ptr) => {
-                        let m = unsafe {&mut *ptr};
+                    Map(m) => {
                         m.insert(key, val);
                     }
                     _ => {
@@ -245,8 +243,7 @@ impl<'a> Vm<'a> {
                 let key = self.pop();
                 let map = self.pop();
                 match map.get() {
-                    Map(ptr) => {
-                        let m = unsafe {&mut *ptr};
+                    Map(m) => {
                         self.push(m.remove(key))
                     }
                     _ => {
@@ -281,8 +278,7 @@ impl<'a> Vm<'a> {
                 let index = self.pop();
                 let vec = self.pop();
                 match (vec.get(), index.get()) {
-                    (Cases::Vector(ptr), Cases::Int(i))  if i >= 0 => {
-                        let v = unsafe {&mut *ptr};
+                    (Cases::Vector(v), Cases::Int(i))  if i >= 0 => {
                         v.set(i as usize, value);
                     }
                     _ => {
@@ -296,8 +292,7 @@ impl<'a> Vm<'a> {
                 let value = self.pop();
                 let vec = self.pop();
                 match vec.get() {
-                    Cases::Vector(ptr) => {
-                        let v = unsafe {&mut *ptr};
+                    Cases::Vector(v) => {
                         v.push(value);                      
                     }
                     _ => {
@@ -310,8 +305,7 @@ impl<'a> Vm<'a> {
                 use crate::values::Cases;
                 let vec = self.pop();
                 match vec.get() {
-                    Cases::Vector(ptr) => {
-                        let v = unsafe {&mut *ptr};
+                    Cases::Vector(v) => {
                         self.push(v.pop());                       
                     }
                     _ => {

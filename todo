@@ -1,3 +1,6 @@
 - strings
-- compiler
+- intrinsics
 - gc
+- keywords
+- packages
+- repl
