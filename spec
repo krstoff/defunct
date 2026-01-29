@@ -12,5 +12,10 @@ Special forms:
 
 (if test resultant else-branch)
 (let [binding-forms*] exprs*)
-(fn [parameters] body)
+(fn [parameters*] body)
 (cond test1 expr1 test2 expr2 ...)
+(do expr1 expr2 ...)
+
+(os/with-open-file file "name"
+    (os/write-file header)
+    (os/write-file :no-buffering contents))

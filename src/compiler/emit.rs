@@ -2,28 +2,35 @@ use std::result;
 
 use super::*;
 use parse::Expr;
-use crate::{bytecode::ByteCode, values::{SymbolTable, Val}};
+use crate::{bytecode::ByteCode, compiler::parse::Primitives, values::{SymbolTable, Val}};
 /// Walks an AST, emitting bytecode instructions into bytecode objects in the program heap
-pub struct Emitter<'scope, 'idents, 'symbols> {
+pub struct Emitter<'scope, 'idents, 'symbols, 'primitives> {
     consts: Vec<Val>,
     code: Vec<u8>,
     sp: usize,
     scope: &'scope mut Scope,
     idents: &'idents IdentTable<'idents>,
     symbol_table: &'symbols mut SymbolTable,
+    primitives: &'primitives Primitives
 }
 
-pub fn emit<'idents, 'symbols>(idents: &'idents IdentTable, symbol_table: &'symbols mut SymbolTable, expr: &Expr) -> ByteCode {
+pub fn emit<'idents, 'symbols, 'primitives>(
+    idents: &'idents IdentTable,
+    primitives: &'primitives Primitives,
+    symbol_table: &'symbols mut SymbolTable,
+    expr: &Expr
+) -> ByteCode
+{
     let mut scope = Scope { symbols: Vec::new() };
-    let mut emitter = Emitter::new(&mut scope, idents, symbol_table);
+    let mut emitter = Emitter::new(&mut scope, idents, symbol_table, primitives);
     emitter.emit(expr);
     let bytecode = emitter.finish();
     bytecode
 }
 
-impl<'scope, 'idents, 'symbols> Emitter<'scope, 'idents, 'symbols> {
-    fn new(scope: &'scope mut Scope, idents: &'idents IdentTable, symbol_table: &'symbols mut SymbolTable) -> Emitter<'scope, 'idents, 'symbols> {
-        Emitter { consts: Vec::new(), code: Vec::new(), sp: 0, scope, idents, symbol_table }
+impl<'scope, 'idents, 'symbols, 'primitives> Emitter<'scope, 'idents, 'symbols, 'primitives> {
+    fn new(scope: &'scope mut Scope, idents: &'idents IdentTable, symbol_table: &'symbols mut SymbolTable, primitives: &'primitives Primitives) -> Emitter<'scope, 'idents, 'symbols, 'primitives> {
+        Emitter { consts: Vec::new(), code: Vec::new(), sp: 0, scope, idents, symbol_table, primitives }
     }
 
     fn finish(self) -> ByteCode {
@@ -82,6 +89,15 @@ impl<'scope, 'idents, 'symbols> Emitter<'scope, 'idents, 'symbols> {
                     self.push_const(interned_symbol.as_val());
                     Ok(())
                 }
+            }
+            PrimOp { op, left, right } => {
+                let opcode = self.primitives.get(*op).unwrap();
+                self.emit(left);
+                self.sp += 1;
+                self.emit(right);
+                self.push_code(*opcode as u8);
+                self.sp -= 1;
+                Ok(())
             }
             Apply { _fn, args } => {
                 for arg in args {

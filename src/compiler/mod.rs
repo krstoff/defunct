@@ -9,11 +9,25 @@ use sexp::Sexp;
 use idents::{Ident, IdentTable};
 use read::Reader;
 use parse::{Specials, parse};
-use crate::values::SymbolTable;
+use crate::{bytecode::OpCode, values::SymbolTable};
 pub use assembler::assemble;
+
+const PRIMITIVES: [(&'static str, OpCode); 9] = [
+    ("+", OpCode::Add),
+    ("-", OpCode::Sub),
+    ("*", OpCode::Mul),
+    ("/", OpCode::Div),
+    ("<", OpCode::Lt),
+    (">", OpCode::Gt),
+    ("<=", OpCode::Lte),
+    (">=", OpCode::Gte),
+    ("eq", OpCode::Eq),
+];
 
 #[cfg(test)]
 mod test {
+    use crate::compiler::parse::Primitives;
+
     use super::*;
     use sexp::print_sexp;
     #[test]
@@ -39,17 +53,18 @@ mod test {
         (let [x 0
               y 1
               z (* 62 42)]
-          (let [sum (+ x y z)]
+          (let [sum (+ x (+ y z))]
             (if (< sum 1000)
               1000
-              (* sum sum sum))))
+              (* sum sum))))
         ";
         let sexp = {
             let mut reader = Reader::new(list_str, &mut idents);
             reader.read()
         }.unwrap();
         let specials = Specials::new_in(&mut idents);
-        let parsed = parse(&sexp, &specials).unwrap();
+        let primitives = Primitives::new_in(&mut idents);
+        let parsed = parse(&sexp, &specials, &primitives).unwrap();
         print!("\n");
         parsed.pprint(&idents, 0);
     }
@@ -58,22 +73,22 @@ mod test {
     fn emit() {
         let mut symbols = SymbolTable::new();
         let mut idents = IdentTable::new();
-        let list_str = r"
-        (let [x 0
-              y 1
-              z (* 62 42)]
-          (let [sum (+ x y z)]
-            (if (< sum 1000)
-              1000
-              (* sum sum sum))))
+        let specials = Specials::new_in(&mut idents);
+        
+        let src = r"
+        (let [s0 0
+              s1 1
+              s2 2]
+          (* s0 (let [s4 3]
+                   (+ s4 4))))
         ";
         let sexp = {
-            let mut reader = Reader::new(list_str, &mut idents);
+            let mut reader = Reader::new(src, &mut idents);
             reader.read()
         }.unwrap();
-        let specials = Specials::new_in(&mut idents);
-        let parsed = parse(&sexp, &specials).unwrap();
-        let bytecode = emit::emit(&idents, &mut symbols, &parsed);
+        let primitives = Primitives::new_in(&mut idents);
+        let parsed = parse(&sexp, &specials, &primitives).unwrap();
+        let bytecode = emit::emit(&idents, &primitives, &mut symbols, &parsed);
         println!("\n{:?}", bytecode)
     }
 }

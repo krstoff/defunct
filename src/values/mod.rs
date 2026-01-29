@@ -7,14 +7,16 @@ mod closures;
 mod symbols;
 mod maps;
 mod vectors;
+mod intrinsics;
+
+use std::f32;
 
 pub use closures::Closure;
 pub use symbols::Symbol;
 pub use symbols::SymbolTable;
 pub use maps::Map;
 pub use vectors::Vector;
-
-use crate::values;
+pub use intrinsics::Intrinsic;
 
 #[derive(Copy, Clone, Debug)]
 #[repr(u8)]
@@ -26,7 +28,7 @@ pub enum Tag {
     Map = 4,
     Object = 5,
     Error = 6,
-    Other = 7,
+    Intrinsic = 7,
 }
 
 fn byte_to_tag(byte: u8) -> Tag {
@@ -151,7 +153,7 @@ pub enum Cases<'a> {
     Map(&'a mut Map),
     Object(),
     Error(),
-    Other(),
+    Intrinsic(Intrinsic),
 }
 
 impl std::fmt::Debug for Val {
@@ -171,6 +173,9 @@ impl std::fmt::Debug for Val {
             }
             Vector(p) => {
                 write!(f, "{:?}", p)
+            }
+            Intrinsic(i) => {
+                write!(f, "<ifn {:x}>", i.addr())
             }
             _ => unimplemented!()
         }
@@ -200,6 +205,9 @@ impl std::hash::Hash for Val {
             }
             Function(f) => {
                 state.write_usize((f as *const Closure).addr())
+            }
+            Intrinsic(f) => {
+                state.write_usize(f.addr())
             }
             _ => unimplemented!()
         }
