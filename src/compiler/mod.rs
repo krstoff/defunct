@@ -77,10 +77,16 @@ mod test {
         let specials = Specials::new_in(&mut idents);
         
         let src = r"
-        (let [add (fn [a b] (+ a b))
-              sub (fn [b a] (- a b))
-              mul (fn [a b] (* a b))]
-          ((fn [z] (mul (sub (add z z) z) z)) 100))
+(set transform
+  (fn [t]
+    (let [x (* t t)
+          y (+ t 1)
+          z (* 62 42)]
+      (let [sum (+ x (+ y z))]
+        (if (< sum 1000)
+          1000
+          (* sum sum))))))
+
         ";
         let sexp = {
             let mut reader = Reader::new(src, &mut idents);

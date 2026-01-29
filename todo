@@ -1,7 +1,6 @@
 - strings
-- intrinsics
-- set, do special forms
-- fn special form
+- intrinsics (print)
+- relative jumps
 - upvalues, environments
 - gc
 - keywords

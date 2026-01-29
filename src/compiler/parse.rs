@@ -8,13 +8,14 @@ use super::*;
 pub enum ParseError {
     MalformedIf,
     MalformedLet,
+    MalformedSet,
     UnbalancedLetBindings,
     LetBindingsAreNotSymbols,
     LetBindingsNotInVector,
     FnBindingsAreNotSymbols,
     FnBindingsNotInVector,
     UnbalancedCond,
-    PrimOpWrongArity
+    PrimOpWrongArity,
 }
 
 use ParseError::*;
@@ -29,11 +30,11 @@ pub enum Expr {
     },
     Let {
         bindings: Vec<(Ident, Expr)>,
-        body: Vec<Expr>,
+        body: Box<Expr>,
     },
     Fn {
         bindings: Vec<Ident>,
-        body: Vec<Expr>,
+        body: Box<Expr>,
     },
     If {
         condition: Box<Expr>,
@@ -45,7 +46,9 @@ pub enum Expr {
         op: Ident,
         left: Box<Expr>,
         right: Box<Expr>,
-    }
+    },
+    Do(Vec<Expr>),
+    Set(Ident, Box<Expr>),
 }
 
 // Store the symbols for special forms here to enable quick comparisons
@@ -54,6 +57,8 @@ pub struct Specials {
     pub _let: Ident,
     pub _cond: Ident,
     pub _if: Ident,
+    pub _do: Ident,
+    pub _set: Ident,
 }
 
 impl Specials {
@@ -63,6 +68,8 @@ impl Specials {
             _let: st.intern("let"),
             _if: st.intern("if"),
             _cond: st.intern("cond"),
+            _set: st.intern("set"),
+            _do: st.intern("do"),
         }
     }
 }
@@ -140,7 +147,7 @@ pub fn parse(sexp: &Sexp, specials: &Specials, primitives: &Primitives) -> Resul
                             }
                             Ok(Expr::Let {
                                 bindings: _bindings,
-                                body: _exprs,
+                                body: Box::new(Expr::Do(_exprs)),
                             })
                         }
                         _ => {
@@ -164,7 +171,7 @@ pub fn parse(sexp: &Sexp, specials: &Specials, primitives: &Primitives) -> Resul
                             }
                             Ok(Expr::Fn {
                                 bindings: _bindings,
-                                body
+                                body: Box::new(Expr::Do(body))
                             })
                         }
                         _ => {
@@ -184,6 +191,24 @@ pub fn parse(sexp: &Sexp, specials: &Specials, primitives: &Primitives) -> Resul
                         _cases.push((case, branch));
                     }
                     Ok(Expr::Cond(_cases))
+                }
+                Ident(sym) if *sym == specials._do => {
+                    let mut body = Vec::new();
+                    for expr in &items[1..] {
+                        body.push(parse(expr, specials, primitives)?);
+                    }
+                    Ok(Expr::Do(body))
+                }
+                Ident(sym) if *sym == specials._set => {
+                    if items.len() != 3 {
+                        return Err(MalformedSet)
+                    }
+                    match items[1] {
+                        Ident(binding) => {
+                            Ok(Expr::Set(binding, Box::new(parse(&items[2], specials, primitives)?)))
+                        }
+                        _ => Err(MalformedSet)
+                    }
                 }
                 Ident(sym) if primitives.get(*sym).is_some() => {
                     let args = &items[1..];
@@ -274,10 +299,9 @@ impl Expr {
                     }
                 }
             }
-            for expr in body {
-                print!("{:width$}", "", width = indent_level + 2);
-                expr.pprint(idents, indent_level + 2);
-            }
+            
+            print!("{:width$}", "", width = indent_level + 2);
+            body.pprint(idents, indent_level + 2);
         }
         If { condition, resultant, else_branch } => {
             print!("IF ");
@@ -293,6 +317,13 @@ impl Expr {
             left.pprint(idents, indent_level + 2);
             print!("{:width$}", "", width=indent_level + 2);
             right.pprint(idents, indent_level + 2);
+        }
+        Do(exprs) => {
+            print!("DO ");
+            for expr in exprs {
+                print!("{:width$}", "", width = indent_level + 2);
+                expr.pprint(idents, indent_level + 2);
+            }
         }
         _ => todo!()
         }

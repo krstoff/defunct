@@ -127,14 +127,7 @@ impl<'scope, 'idents, 'symbols, 'primitives> Emitter<'scope, 'idents, 'symbols, 
                     self.scope.push(binding, *slot);
                 }
                 let mut expr_counter = 0;
-                for expr in body {
-                    if expr_counter != 0 {
-                        self.push_code(OpCode::Pop as u8); // Discard intermediary results in body
-                        self.push_code(1);
-                    }
-                    self.emit(expr)?;
-                    expr_counter += 1;
-                }
+                self.emit(body)?;
                 for _ in 0..bindings.len() {
                     self.scope.pop();
                 }
@@ -152,14 +145,7 @@ impl<'scope, 'idents, 'symbols, 'primitives> Emitter<'scope, 'idents, 'symbols, 
                 }
                 let mut body_emitter = Emitter::new(&mut scope, self.idents, self.symbol_table, self.primitives);
                 let mut first_expression = true;
-                for expr in body {
-                    if !first_expression {
-                        body_emitter.push_code(OpCode::Pop as u8);
-                        body_emitter.push_code(1);
-                        first_expression = false;
-                    }
-                    body_emitter.emit(expr)?
-                }
+                body_emitter.emit(body)?;
                 body_emitter.push_code(OpCode::Ret as u8);
                 body_emitter.push_code(bindings.len() as u8);
 
@@ -168,6 +154,18 @@ impl<'scope, 'idents, 'symbols, 'primitives> Emitter<'scope, 'idents, 'symbols, 
                 self.push_code(self.consts.len() as u8);
                 self.push_const(code_objs[code_objs.len() - 1]);
                 self.code_objs.append(&mut code_objs);
+                Ok(())
+            }
+            Do(exprs) => {
+                let mut first_expression = true;
+                for expr in exprs {
+                    if !first_expression {
+                        self.push_code(OpCode::Pop as u8);
+                        self.push_code(1);
+                        first_expression = false;
+                    }
+                    self.emit(expr)?;
+                }
                 Ok(())
             }
             If { condition, resultant, else_branch } => {
@@ -183,6 +181,21 @@ impl<'scope, 'idents, 'symbols, 'primitives> Emitter<'scope, 'idents, 'symbols, 
                 self.write(false_jmp_param, true_exit_jmp_param as u8 + 1);
                 self.write(true_exit_jmp_param, self.end() as u8);
                 Ok(())
+            }
+            Set(symbol, value) => {
+                if let Some(slot) = self.scope.lookup(symbol) {
+                    todo!() // cannot set locals just yet.
+                } else {
+                    // Dynamic symbol lookup
+                    let name = self.idents.get_name(*symbol);
+                    let interned_symbol = self.symbol_table.intern(name);
+                    self.push_code(OpCode::Const as u8);
+                    self.push_code(self.consts.len() as u8);
+                    self.push_const(interned_symbol.as_val());
+                    self.emit(value)?;
+                    self.push_code(OpCode::SymSet as u8);
+                    Ok(())
+                }
             }
             Cond(cases) => {
                 todo!()

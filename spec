@@ -30,9 +30,9 @@ Special forms:
     (let [x (* t t)
           y (+ t 1)
           z (* 62 42)]
-      (let [sum (+ x y z)]
+      (let [sum (+ x (+ y z))]
         (if (< sum 1000)
           1000
-          (* sum sum sum))))))
+          (* sum sum))))))
 
    
