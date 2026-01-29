@@ -15,7 +15,24 @@ Special forms:
 (fn [parameters*] body)
 (cond test1 expr1 test2 expr2 ...)
 (do expr1 expr2 ...)
+(set symbol expr)
 
 (os/with-open-file file "name"
     (os/write-file header)
     (os/write-file :no-buffering contents))
+
+(os/with-open-file file "name"
+  (os/write-file header)
+  (os/write-file :no-buffering contents))
+
+(set transform
+  (fn [t]
+    (let [x (* t t)
+          y (+ t 1)
+          z (* 62 42)]
+      (let [sum (+ x y z)]
+        (if (< sum 1000)
+          1000
+          (* sum sum sum))))))
+
+   

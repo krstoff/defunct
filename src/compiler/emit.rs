@@ -11,7 +11,8 @@ pub struct Emitter<'scope, 'idents, 'symbols, 'primitives> {
     scope: &'scope mut Scope,
     idents: &'idents IdentTable<'idents>,
     symbol_table: &'symbols mut SymbolTable,
-    primitives: &'primitives Primitives
+    primitives: &'primitives Primitives,
+    code_objs: Vec<Val>,
 }
 
 pub fn emit<'idents, 'symbols, 'primitives>(
@@ -19,25 +20,27 @@ pub fn emit<'idents, 'symbols, 'primitives>(
     primitives: &'primitives Primitives,
     symbol_table: &'symbols mut SymbolTable,
     expr: &Expr
-) -> ByteCode
+) -> Vec<Val>
 {
-    let mut scope = Scope { symbols: Vec::new() };
+    let mut scope = Scope::new();
     let mut emitter = Emitter::new(&mut scope, idents, symbol_table, primitives);
     emitter.emit(expr);
-    let bytecode = emitter.finish();
-    bytecode
+    let objs = emitter.finish();
+    objs
 }
 
 impl<'scope, 'idents, 'symbols, 'primitives> Emitter<'scope, 'idents, 'symbols, 'primitives> {
     fn new(scope: &'scope mut Scope, idents: &'idents IdentTable, symbol_table: &'symbols mut SymbolTable, primitives: &'primitives Primitives) -> Emitter<'scope, 'idents, 'symbols, 'primitives> {
-        Emitter { consts: Vec::new(), code: Vec::new(), sp: 0, scope, idents, symbol_table, primitives }
+        Emitter { consts: Vec::new(), code: Vec::new(), sp: 0, scope, idents, symbol_table, primitives, code_objs: Vec::new() }
     }
 
-    fn finish(self) -> ByteCode {
+    fn finish(mut self) -> Vec<Val> {
         // todo: allocate this in the heap
         let consts = Box::leak(self.consts.into_boxed_slice()) as *mut _;
         let code = Box::leak(self.code.into_boxed_slice()) as *mut _;
-        ByteCode { consts, code }
+        let code_obj = ByteCode::new(consts, code);
+        self.code_objs.push(code_obj);
+        self.code_objs
     }
 
     fn push_code(&mut self, byte: u8) -> usize {
@@ -87,6 +90,7 @@ impl<'scope, 'idents, 'symbols, 'primitives> Emitter<'scope, 'idents, 'symbols, 
                     self.push_code(OpCode::Const as u8);
                     self.push_code(self.consts.len() as u8);
                     self.push_const(interned_symbol.as_val());
+                    self.push_code(OpCode::SymGet as u8);
                     Ok(())
                 }
             }
@@ -140,7 +144,31 @@ impl<'scope, 'idents, 'symbols, 'primitives> Emitter<'scope, 'idents, 'symbols, 
                 Ok(())
             }
             Fn { bindings, body } => {
-                todo!()
+                let mut scope = Scope::new();
+                let mut sp = 0;
+                for b in bindings {
+                    scope.push(b, sp);
+                    sp += 1;
+                }
+                let mut body_emitter = Emitter::new(&mut scope, self.idents, self.symbol_table, self.primitives);
+                let mut first_expression = true;
+                for expr in body {
+                    if !first_expression {
+                        body_emitter.push_code(OpCode::Pop as u8);
+                        body_emitter.push_code(1);
+                        first_expression = false;
+                    }
+                    body_emitter.emit(expr)?
+                }
+                body_emitter.push_code(OpCode::Ret as u8);
+                body_emitter.push_code(bindings.len() as u8);
+
+                let mut code_objs = body_emitter.finish();
+                self.push_code(OpCode::Closure as u8);
+                self.push_code(self.consts.len() as u8);
+                self.push_const(code_objs[code_objs.len() - 1]);
+                self.code_objs.append(&mut code_objs);
+                Ok(())
             }
             If { condition, resultant, else_branch } => {
                 self.emit(condition)?;
@@ -166,10 +194,13 @@ impl<'scope, 'idents, 'symbols, 'primitives> Emitter<'scope, 'idents, 'symbols, 
 type Slot = usize;
 
 struct Scope {
-    symbols: Vec<(Ident, Slot)>,
+    symbols: allocator_api2::vec::Vec::<(Ident, Slot), crate::alloc::Heap>,
 }
 
 impl Scope {
+    pub fn new() -> Scope {
+        Scope {symbols: allocator_api2::vec::Vec::new_in(crate::alloc::Heap)}
+    }
     pub fn push(&mut self, sym: &Ident, slot: Slot) {
         self.symbols.push((*sym, slot))
     }

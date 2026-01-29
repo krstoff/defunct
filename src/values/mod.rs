@@ -18,6 +18,8 @@ pub use maps::Map;
 pub use vectors::Vector;
 pub use intrinsics::Intrinsic;
 
+use crate::bytecode::ByteCode;
+
 #[derive(Copy, Clone, Debug)]
 #[repr(u8)]
 pub enum Tag {
@@ -46,6 +48,9 @@ const HIGHTAG_MASK: usize = 0xFFFF_0000_0000_0000;
 pub struct Val(*mut u8);
 
 impl Val {
+    pub fn tag(&self) -> Tag {
+        byte_to_tag((self.0.addr() & LOWTAG_MASK) as u8)
+    }
     pub fn bits(&self) -> usize {
         self.0.addr()
     }
@@ -138,6 +143,9 @@ impl Val {
             Tag::Vector => {
                 Cases::Vector(unsafe { &mut *(ptr as *mut Vector)})
             }
+            Tag::Object => {
+                Cases::Object( unsafe { &*(ptr as *const ByteCode)})
+            }
             _ => unimplemented!()
         }
     }
@@ -151,7 +159,7 @@ pub enum Cases<'a> {
     Cons(),
     Vector(&'a mut Vector),
     Map(&'a mut Map),
-    Object(),
+    Object(&'a ByteCode),
     Error(),
     Intrinsic(Intrinsic),
 }
@@ -176,6 +184,9 @@ impl std::fmt::Debug for Val {
             }
             Intrinsic(i) => {
                 write!(f, "<ifn {:x}>", i.addr())
+            }
+            Object(bytecode) => {
+                write!(f, "<code {:x}>", (bytecode as *const ByteCode).addr())
             }
             _ => unimplemented!()
         }
@@ -208,6 +219,9 @@ impl std::hash::Hash for Val {
             }
             Intrinsic(f) => {
                 state.write_usize(f.addr())
+            }
+            Object(bytecode) => {
+                state.write_usize((bytecode as *const ByteCode).addr())
             }
             _ => unimplemented!()
         }

@@ -1,6 +1,5 @@
 - strings
 - intrinsics
-- prim-ops
 - set, do special forms
 - fn special form
 - upvalues, environments

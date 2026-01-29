@@ -4,6 +4,7 @@ mod vm;
 pub mod values;
 pub mod global;
 pub mod compiler;
+mod common;
 
 use std::ptr;
 

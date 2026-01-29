@@ -115,6 +115,7 @@ impl<'a> Vm<'a> {
 
     // Returns true if machine has to suddenly halt.
     pub fn step(&mut self) -> bool {
+        use crate::values::Cases;
         use OpCode::*;
         let op_code = unsafe { (*self.fp.code)[self.fp.ip] };
         self.fp.ip += 1;
@@ -155,11 +156,10 @@ impl<'a> Vm<'a> {
                 self.fp.ip = i as usize;
             }
             Call => {
-                use crate::values::Cases::*;
                 let n = self.take_operand();
                 let f = self.pop();
                 match f.get() {
-                    Function(ptr) => {
+                    Cases::Function(ptr) => {
                         self.frames.push(self.fp);
                         unsafe {
                             self.fp.code = (*(*ptr).code_obj).code;
@@ -205,11 +205,10 @@ impl<'a> Vm<'a> {
                 }
             }
             MapGet => {
-                use crate::values::Cases::*;
                 let key = self.pop();
                 let map = self.pop();
                 match map.get() {
-                    Map(m) => {
+                    Cases::Map(m) => {
                         self.push(m.get(key))
                     }
                     _ => {
@@ -219,12 +218,11 @@ impl<'a> Vm<'a> {
                 }
             }
             MapSet => {
-                use crate::values::Cases::*;
                 let val = self.pop();
                 let key = self.pop();
                 let map = self.pop();
                 match map.get() {
-                    Map(m) => {
+                    Cases::Map(m) => {
                         m.insert(key, val);
                     }
                     _ => {
@@ -239,11 +237,10 @@ impl<'a> Vm<'a> {
                 self.push(Val::from_ptr(Tag::Map, ptr as *mut u8));
             }
             MapDel => {
-                use crate::values::Cases::*;
                 let key = self.pop();
                 let map = self.pop();
                 match map.get() {
-                    Map(m) => {
+                    Cases::Map(m) => {
                         self.push(m.remove(key))
                     }
                     _ => {
@@ -258,7 +255,6 @@ impl<'a> Vm<'a> {
                 self.push(Val::from_ptr(Tag::Vector, ptr as *mut u8));
             }
             VecGet => {
-                use crate::values::Cases;
                 let index = self.pop();
                 let vec = self.pop();
                 match (vec.get(), index.get()) {
@@ -273,7 +269,6 @@ impl<'a> Vm<'a> {
                 }
             }
             VecSet => {
-                use crate::values::Cases;
                 let value = self.pop();
                 let index = self.pop();
                 let vec = self.pop();
@@ -288,7 +283,6 @@ impl<'a> Vm<'a> {
                 }
             }
             VecPush => {
-                use crate::values::Cases;
                 let value = self.pop();
                 let vec = self.pop();
                 match vec.get() {
@@ -302,7 +296,6 @@ impl<'a> Vm<'a> {
                 }
             }
             VecPop => {
-                use crate::values::Cases;
                 let vec = self.pop();
                 match vec.get() {
                     Cases::Vector(v) => {
@@ -315,7 +308,6 @@ impl<'a> Vm<'a> {
                 }
             }
             SymGet => {
-                use crate::values::Cases;
                 let val = self.pop();
                 match val.get() {
                     Cases::Symbol(sym) => {
@@ -336,7 +328,6 @@ impl<'a> Vm<'a> {
                 }
             }
             SymSet => {
-                use crate::values::Cases;
                 let val = self.pop();
                 let sym = self.pop();
                 match sym.get() {
@@ -347,6 +338,18 @@ impl<'a> Vm<'a> {
                         // TODO: TypeError
                         unimplemented!()
                     }
+                }
+            }
+            Closure => {
+                let i = self.take_operand();
+                let ptr = unsafe { (*self.fp.constants)[i as usize] };
+                match ptr.get() {
+                    Cases::Object(obj) => {
+                        let closure = crate::Closure::new(&[], obj as *const _);
+                        self.push(closure)
+                    }
+                    // TODO: TypeError
+                    _ => unimplemented!()
                 }
             }
         }

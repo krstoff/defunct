@@ -105,6 +105,11 @@ impl Heap {
             heap.borrow_mut().alloc(size)
         )
     }
+
+    pub fn new<T: Sized>() -> *mut T {
+        let ptr = Heap::alloc(size_of::<T>());
+        ptr as *mut T
+    }
 }
 
 unsafe impl alloc::Allocator for Heap {

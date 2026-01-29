@@ -11,6 +11,7 @@ use read::Reader;
 use parse::{Specials, parse};
 use crate::{bytecode::OpCode, values::SymbolTable};
 pub use assembler::assemble;
+use crate::bytecode::ByteCode;
 
 const PRIMITIVES: [(&'static str, OpCode); 9] = [
     ("+", OpCode::Add),
@@ -76,11 +77,10 @@ mod test {
         let specials = Specials::new_in(&mut idents);
         
         let src = r"
-        (let [s0 0
-              s1 1
-              s2 2]
-          (* s0 (let [s4 3]
-                   (+ s4 4))))
+        (let [add (fn [a b] (+ a b))
+              sub (fn [b a] (- a b))
+              mul (fn [a b] (* a b))]
+          ((fn [z] (mul (sub (add z z) z) z)) 100))
         ";
         let sexp = {
             let mut reader = Reader::new(src, &mut idents);
@@ -88,7 +88,10 @@ mod test {
         }.unwrap();
         let primitives = Primitives::new_in(&mut idents);
         let parsed = parse(&sexp, &specials, &primitives).unwrap();
-        let bytecode = emit::emit(&idents, &primitives, &mut symbols, &parsed);
-        println!("\n{:?}", bytecode)
+        let objects = emit::emit(&idents, &primitives, &mut symbols, &parsed);
+        for obj in objects.iter() {
+            let bytecode: &ByteCode = obj.try_into().unwrap();
+            println!("\n{:?}", bytecode);
+        }
     }
 }

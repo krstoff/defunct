@@ -1,3 +1,5 @@
+use crate::common::*;
+
 use crate::values::Val;
 
 #[derive(Copy, Clone, Debug)]
@@ -36,6 +38,8 @@ pub enum OpCode {
 
     SymSet,      // { sym s, v } -> {}; s.value = v
     SymGet,      // { sym s } -> { s.value }
+
+    Closure,     // closure n {} -> { Closure { env: [], code_obj: frame.constants[n] }
 
     Halt,        // {v} -> {}; break v;
     // Halt MUST be the last op-code in order for fn to_op to work!
@@ -79,6 +83,7 @@ impl OpCode {
             VecPop => "vecpop",
             SymSet => "symset",
             SymGet => "symget",
+            Closure => "closure",
             Halt => "halt",
         }
     }
@@ -94,6 +99,7 @@ impl OpCode {
             Call => true,
             Ret => true,
             Jmp => true,
+            Closure => true,
             _ => false,
         }
     }
@@ -102,6 +108,14 @@ impl OpCode {
 pub struct ByteCode {
     pub consts: *const [Val],
     pub code: *const [u8],
+}
+
+impl ByteCode {
+    pub fn new(consts: *const [Val], code: *const [u8]) -> Val {
+       let mut ptr = Heap::new::<ByteCode>();
+       unsafe { std::ptr::write(ptr, ByteCode {consts, code}) };
+       Val::from_ptr(crate::values::Tag::Object, ptr as *mut _)
+    }
 }
 
 impl std::fmt::Debug for ByteCode {
@@ -136,6 +150,21 @@ impl std::fmt::Debug for ByteCode {
                 i += 1;
             }
             f.write_str("---END---\n")
+        }
+    }
+}
+
+impl<'a> TryFrom<&'a Val> for &'a ByteCode {
+    type Error = crate::values::Tag;
+    fn try_from(v: &Val) -> Result<&ByteCode, crate::values::Tag> {
+        use crate::values::Cases;
+        match v.get() {
+            Cases::Object(p) => {
+                Ok(p)
+            }
+            _ => {
+                Err(v.tag())
+            }
         }
     }
 }
