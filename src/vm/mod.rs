@@ -153,7 +153,7 @@ impl<'a> Vm<'a> {
             }
             Jmp => {
                 let i = self.take_operand();
-                self.fp.ip = i as usize;
+                self.fp.ip += i as usize;
             }
             Call => {
                 let n = self.take_operand();

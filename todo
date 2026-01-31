@@ -7,6 +7,7 @@
 - macros
 - looping
 - gc
+- move allocator out of thread-local storage
 - keywords
 - packages
 - repl

@@ -9,6 +9,7 @@ pub enum ParseError {
     MalformedIf,
     MalformedLet,
     MalformedSet,
+    MalformedRet,
     UnbalancedLetBindings,
     LetBindingsAreNotSymbols,
     LetBindingsNotInVector,
@@ -49,6 +50,7 @@ pub enum Expr {
     },
     Do(Vec<Expr>),
     Set(Ident, Box<Expr>),
+    Ret(Box<Expr>),
 }
 
 // Store the symbols for special forms here to enable quick comparisons
@@ -59,6 +61,7 @@ pub struct Specials {
     pub _if: Ident,
     pub _do: Ident,
     pub _set: Ident,
+    pub _ret: Ident,
 }
 
 impl Specials {
@@ -70,6 +73,7 @@ impl Specials {
             _cond: st.intern("cond"),
             _set: st.intern("set"),
             _do: st.intern("do"),
+            _ret: st.intern("return"),
         }
     }
 }
@@ -209,6 +213,12 @@ pub fn parse(sexp: &Sexp, specials: &Specials, primitives: &Primitives) -> Resul
                         }
                         _ => Err(MalformedSet)
                     }
+                }
+                Ident(sym) if *sym == specials._ret => {
+                    if items.len() != 2 {
+                        return Err(MalformedRet)
+                    }
+                    Ok(Expr::Ret(Box::new(parse(&items[1], specials, primitives)?)))
                 }
                 Ident(sym) if primitives.get(*sym).is_some() => {
                     let args = &items[1..];

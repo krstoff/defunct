@@ -178,7 +178,7 @@ impl<'scope, 'idents, 'symbols, 'primitives> Emitter<'scope, 'idents, 'symbols, 
                 let true_exit_jmp_param = self.push_code(0); // after resultant block, jmp past end of the else-block
 
                 self.emit(else_branch)?;
-                self.write(false_jmp_param, true_exit_jmp_param as u8 + 1);
+                self.write(false_jmp_param, (true_exit_jmp_param - false_jmp_param - 1) as u8);
                 self.write(true_exit_jmp_param, self.end() as u8);
                 Ok(())
             }
@@ -196,6 +196,12 @@ impl<'scope, 'idents, 'symbols, 'primitives> Emitter<'scope, 'idents, 'symbols, 
                     self.push_code(OpCode::SymSet as u8);
                     Ok(())
                 }
+            }
+            Ret(expr) => {
+                self.emit(expr)?;
+                self.push_code(OpCode::Ret as u8);
+                self.push_code(self.sp as u8);
+                Ok(())
             }
             Cond(cases) => {
                 todo!()
