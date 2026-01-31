@@ -1,7 +1,11 @@
+- relative jumps, return
+- integration test
 - strings
-- intrinsics (print)
-- relative jumps
+- map literals
+- intrinsics (print, halt)
 - upvalues, environments
+- macros
+- looping
 - gc
 - keywords
 - packages

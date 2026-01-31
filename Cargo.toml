@@ -10,3 +10,6 @@ allocator-api2 = "*"
 [lints.rust]
 # Allows all 'unused' related warnings
 unused = "allow" 
+
+[patch.crates-io]
+hashbrown = { path = "hashbrown" }
