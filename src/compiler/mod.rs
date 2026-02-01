@@ -27,28 +27,72 @@ const PRIMITIVES: [(&'static str, OpCode); 9] = [
 
 #[cfg(test)]
 mod test {
-    use crate::compiler::parse::Primitives;
-
     use super::*;
-    use sexp::print_sexp;
+    use parse::Primitives;
     #[test]
     fn sexp() {
         use read::*;
+        use sexp::Sexp::*;
         let mut idents = super::IdentTable::new();
         let list_str = r"
         (defn add3 [x y z]
-          (let ((*sum* (+ x y z))
-            sum)))
+          (let ((*sum* (+ x y z)))
+            sum))
         ";
         let sexp = {
             let mut reader = Reader::new(list_str, &mut idents);
             reader.read()
-        }.unwrap();
-        print_sexp(&sexp, &idents);
+        }.expect("failed to read sexp");
+
+        
+        let name_of = |ident: &_| idents.get_name(*ident);
+        match sexp {
+            List(items) => {
+                match (&items[0], &items[1], &items[2], &items[3]) {
+                    (Ident(defn), Ident(add3), Vector(bindings), List(body)) if name_of(defn) == "defn" && name_of(add3) == "add3" => {
+                        for b in bindings {
+                            match b {
+                                Ident(i) => { continue; }
+                                _ => { panic!("Expected a symbol in bindings list.") }
+                            }
+                        }
+                        match &body[..] {
+                            [Ident(head), List(bindings), Ident(sum)] if name_of(head) == "let" && name_of(sum) == "sum" => {
+                                match &bindings[..] {
+                                    [List(items)] => {
+                                        match &items[..] {
+                                            [Ident(sum), List(binding)] => {
+                                                match &binding[..] {
+                                                    [Ident(plus), Ident(x), Ident(y), Ident(z)] if 
+                                                        name_of(sum) == "*sum*" &&
+                                                        name_of(x) == "x" &&
+                                                        name_of(y) == "y" &&
+                                                        name_of(z) == "z" => {
+                                                            return;
+                                                    }
+                                                    _ => panic!("Failed at point a")
+                                                }
+                                            }
+                                            _ => panic!("Failed at point b")
+                                        }
+                                    }
+                                    _ => panic!("Failed at point c")
+                                }
+                            }
+                            _ => panic!("Failed at point d")
+                        }
+                    }
+                    _ => panic!("Failed at point e")
+                }
+            }
+            _ => panic!("Failed at point f")
+        }
+        panic!("Read form did not match expected structure.");
     }
 
     #[test]
     fn parsing() {
+        use parse::Expr::*;
         let mut idents = IdentTable::new();
         let list_str = r"
         (let [x 0
@@ -66,8 +110,23 @@ mod test {
         let specials = Specials::new_in(&mut idents);
         let primitives = Primitives::new_in(&mut idents);
         let parsed = parse(&sexp, &specials, &primitives).unwrap();
-        print!("\n");
-        parsed.pprint(&idents, 0);
+        
+        let name_of = |ident: &_| idents.get_name(*ident);
+        match parsed {
+            Let { bindings, body } => {
+                match &bindings[..] {
+                    [(x, NumLiteral(0.0)), (y, NumLiteral(1.0)), (z, PrimOp { op: times, left, right })] 
+                    if name_of(x) == "x" && name_of(y) == "y" && name_of(z) == "z" 
+                    && name_of(times) == "*" => {
+                        // at this point I got tired of matching through boxes without box patterns
+                        return;
+                    }
+                    _ => panic!("Failed to parse at point a")
+                }
+            }
+            _ => panic!("Failed ot parse at point b")
+        }
+        
     }
 
     #[test]

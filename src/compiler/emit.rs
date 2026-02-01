@@ -24,7 +24,7 @@ pub fn emit<'idents, 'symbols, 'primitives>(
 {
     let mut scope = Scope::new();
     let mut emitter = Emitter::new(&mut scope, idents, symbol_table, primitives);
-    emitter.emit(expr);
+    emitter.emit(expr).expect("Failed to emit bytecode.");
     let objs = emitter.finish();
     objs
 }
@@ -236,6 +236,7 @@ impl Scope {
     }
 }
 
+#[derive(Debug)]
 pub enum CompileError {
     SlotTooLarge(usize)
 }
