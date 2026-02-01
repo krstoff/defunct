@@ -1,7 +1,7 @@
 #[derive(Copy, Clone)]
-pub struct Intrinsic(fn() -> ());
+pub struct NativeFn(fn() -> ());
 
-impl Intrinsic {
+impl NativeFn {
     pub fn addr(&self) -> usize {
         (self.0 as *const u8).addr()
     }

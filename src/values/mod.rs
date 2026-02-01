@@ -7,7 +7,7 @@ mod closures;
 mod symbols;
 mod maps;
 mod vectors;
-mod intrinsics;
+mod native_fns;
 
 use std::f32;
 
@@ -16,7 +16,7 @@ pub use symbols::Symbol;
 pub use symbols::SymbolTable;
 pub use maps::Map;
 pub use vectors::Vector;
-pub use intrinsics::Intrinsic;
+pub use native_fns::NativeFn;
 
 use crate::bytecode::ByteCode;
 
@@ -30,7 +30,7 @@ pub enum Tag {
     Map = 4,
     Object = 5,
     Error = 6,
-    Intrinsic = 7,
+    NativeFn = 7,
 }
 
 fn byte_to_tag(byte: u8) -> Tag {
@@ -161,7 +161,7 @@ pub enum Cases<'a> {
     Map(&'a mut Map),
     Object(&'a ByteCode),
     Error(),
-    Intrinsic(Intrinsic),
+    NativeFn(NativeFn),
 }
 
 impl std::fmt::Debug for Val {
@@ -182,8 +182,8 @@ impl std::fmt::Debug for Val {
             Vector(p) => {
                 write!(f, "{:?}", p)
             }
-            Intrinsic(i) => {
-                write!(f, "<ifn {:x}>", i.addr())
+            NativeFn(i) => {
+                write!(f, "<native {:x}>", i.addr())
             }
             Object(bytecode) => {
                 write!(f, "<code {:x}>", (bytecode as *const ByteCode).addr())
@@ -217,7 +217,7 @@ impl std::hash::Hash for Val {
             Function(f) => {
                 state.write_usize((f as *const Closure).addr())
             }
-            Intrinsic(f) => {
+            NativeFn(f) => {
                 state.write_usize(f.addr())
             }
             Object(bytecode) => {
