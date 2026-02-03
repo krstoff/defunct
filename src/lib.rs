@@ -5,6 +5,7 @@ pub mod values;
 pub mod global;
 pub mod compiler;
 mod common;
+mod intrinsics;
 
 use std::ptr;
 

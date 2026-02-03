@@ -1,12 +1,15 @@
-- integration test
-- strings
 - map literals
-- intrinsics (print, halt)
-- upvalues, environments
-- macros
+- end-to-end language tests
 - looping
-- gc
-- move allocator out of thread-local storage
-- keywords
-- packages
+- allocator tests
+- upvalues, environments
+- generalized structs
+  - vectors, strings
+- macros, compiler refactor
+- errors :(
+- cleanup all TODOs
 - repl
+- packages
+- map-benchmark, refactor
+- move allocator out of thread-local storage
+- garbage-collector, gc header data

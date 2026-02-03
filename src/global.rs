@@ -1,4 +1,5 @@
 use crate::values::{Symbol, SymbolTable};
+use crate::intrinsics;
 
 pub struct Global {
     pub st: SymbolTable,
@@ -6,7 +7,11 @@ pub struct Global {
 
 impl Global {
     pub fn new() -> Global {
-        let st = SymbolTable::new();
+        let mut st = SymbolTable::new();
+        for (name, function) in intrinsics::INTRINSICS {
+            let mut sym = st.intern(name);
+            sym.set(function.to_val())
+        }
         Global { st }
     }
     

@@ -5,7 +5,7 @@ use crate::bytecode::{OpCode, to_op};
 
 #[derive(Copy, Clone)]
 struct Frame {
-    ip: usize,
+    ip: usize,  
     base: usize,
     constants: *const [Val],
     code: *const [u8],

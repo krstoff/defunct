@@ -149,6 +149,10 @@ impl Val {
             _ => unimplemented!()
         }
     }
+
+    pub fn nil() -> Val {
+        Symbol::nil()
+    }
 }
 
 pub enum Cases<'a> {
