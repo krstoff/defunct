@@ -72,8 +72,37 @@ impl<'scope, 'idents, 'symbols, 'primitives> Emitter<'scope, 'idents, 'symbols, 
                 self.push_const(Val::from_num(*num));
                 Ok(())
             }
-            VectorLiteral(_) => {
-                todo!()
+            VectorLiteral(items) => {
+                self.push_code(OpCode::VecNew as u8);
+                let vec_slot = self.sp;
+                self.sp += 1;
+                for item in items {
+                    self.push_code(OpCode::Dup as u8);
+                    self.push_code(vec_slot as u8);
+                    self.sp += 1;
+                    self.emit(item)?;
+                    self.push_code(OpCode::VecPush as u8);
+                    self.sp -= 1;
+                }
+                self.sp -= 1;
+                Ok(())
+            }
+            MapLiteral(items) => {
+                self.push_code(OpCode::VecNew as u8);
+                let map_slot = self.sp;
+                self.sp += 1;
+                for (key, value) in items {
+                    self.push_code(OpCode::Dup as u8);
+                    self.push_code(map_slot as u8);
+                    self.sp += 1;
+                    self.emit(key)?;
+                    self.sp += 1;
+                    self.emit(value)?;
+                    self.push_code(OpCode::MapSet as u8);
+                    self.sp -= 2;
+                }
+                self.sp -= 1;
+                Ok(())
             }
             Ident(symbol) => {
                 if let Some(slot) = self.scope.lookup(symbol) {

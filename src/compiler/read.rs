@@ -4,12 +4,14 @@ use std::str::Chars;
 use super::Sexp;
 use super::{IdentTable, Ident};
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 enum ReadErrorReason {
     UnexpectedChar(char),
     NumberParseErr(String),
     UnbalancedBracket,
     UnbalancedParen,
+    UnbalancedBrace,
+    UnbalancedMapItems,
     EOF
 }
 use ReadErrorReason::*;
@@ -35,6 +37,12 @@ impl std::fmt::Debug for ReadError {
             }
             UnbalancedParen => {
                 write!(f, "Encountered unexpected ')' character; count your parens")
+            }
+            UnbalancedBrace => {
+                write!(f, "Encountered unexpected '}}' character; count your braces")
+            }
+            UnbalancedMapItems => {
+                write!(f, "Unexpected end of map literal; items were unbalanced")
             }
             EOF => {
                 write!(f, "Unexpected end of file")
@@ -107,6 +115,9 @@ impl<'src, 'sym> Reader<'src, 'sym> {
             Some((_, '[')) => {
                 self.read_vector()
             }
+            Some((_, '{')) => {
+                self.read_map()
+            }
             Some((i, c)) if is_number_start_char(c) => {
                 self.read_number(i)
             }
@@ -127,6 +138,9 @@ impl<'src, 'sym> Reader<'src, 'sym> {
         while let Some((i, c)) = self.chars.peek() && *c != ')' {
             if *c == ']' {
                 return Err(self.error(UnbalancedBracket))
+            }
+            if *c == '}' {
+                return Err(self.error(UnbalancedBrace))
             }
             items.push(self.read()?);
             self.trim_whitespace();
@@ -149,6 +163,9 @@ impl<'src, 'sym> Reader<'src, 'sym> {
             if *c == ')' {
                 return Err(self.error(UnbalancedParen))
             }
+            if *c == '}' {
+                return Err(self.error(UnbalancedBrace))
+            }
             items.push(self.read()?);
             self.trim_whitespace();
         }
@@ -159,6 +176,40 @@ impl<'src, 'sym> Reader<'src, 'sym> {
         }
 
         Ok(Sexp::Vector(items))
+    }
+
+    fn read_map(&mut self) -> Result<Sexp, ReadError> {
+        self.chars.next(); // trim '['
+        self.trim_whitespace();
+
+        let mut items = Vec::new();
+        while let Some((i, c)) = self.chars.peek() && *c != '}' {
+            if *c == ')' {
+                return Err(self.error(UnbalancedParen))
+            }
+            if *c == ']' {
+                return Err(self.error(UnbalancedBracket))
+            }
+            let key = self.read()?;
+            let value = match self.read() {
+                Ok(value) => value,
+                Err(e) if e.reason == UnexpectedChar('}') => {
+                    return Err(self.error(UnbalancedMapItems))
+                }
+                Err(e) => {
+                    return Err(e)
+                }
+            };
+            items.push((key, value));
+            self.trim_whitespace();
+        }
+
+        // trim '}'
+        if let None = self.chars.next() {
+            return Err(self.error(EOF))
+        }
+
+        Ok(Sexp::Map(items))
     }
 
     fn read_symbol(&mut self, start: usize) -> Result<Sexp, ReadError> {

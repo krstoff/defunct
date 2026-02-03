@@ -24,6 +24,7 @@ use ParseError::*;
 pub enum Expr {
     NumLiteral(f64),
     VectorLiteral(Vec<Expr>),
+    MapLiteral(Vec<(Expr, Expr)>),
     Ident(Ident),
     Apply {
         _fn: Box<Expr>,
@@ -249,6 +250,16 @@ pub fn parse(sexp: &Sexp, specials: &Specials, primitives: &Primitives) -> Resul
                         args: parse_list(&items[1..], specials, primitives)?
                     })
                 }
+                Map(inner_list) => {
+                    let mut map_eval = Vec::new();
+                    for (key, val) in inner_list {
+                        map_eval.push((parse(key, specials, primitives)?, parse(val, specials, primitives)?));
+                    }
+                    Ok(Expr::Apply {
+                        _fn: Box::new(Expr::MapLiteral(map_eval)),
+                        args: parse_list(&items[1..], specials, primitives)?
+                    })
+                }
                 Number(num) => {
                     Ok(Expr::Apply {
                         _fn: Box::new(Expr::NumLiteral(*num)),
@@ -263,6 +274,13 @@ pub fn parse(sexp: &Sexp, specials: &Specials, primitives: &Primitives) -> Resul
                 _items.push(parse(i, specials, primitives)?);
             }
             Ok(Expr::VectorLiteral(_items))
+        }
+        Map(items) => {
+            let mut _items = Vec::new();
+            for (key, val) in items {
+                _items.push((parse(key, specials, primitives)?, parse(val, specials, primitives)?));
+            }
+            Ok(Expr::MapLiteral(_items))
         }
     }
 }

@@ -4,6 +4,7 @@ use super::IdentTable;
 pub enum Sexp {
     List(Vec<Sexp>),
     Vector(Vec<Sexp>),
+    Map(Vec<(Sexp, Sexp)>),
     Ident(Ident),
     Number(f64),
 }
@@ -66,6 +67,20 @@ pub fn print_sexp(sexp: &Sexp, ident_table: &IdentTable) {
                 count += 1;
             }
             print!("]");
+        }
+        Sexp::Map(items) => {
+            print!("{{");
+            let mut count = 0;
+            for (key, value) in items.iter() {
+                if count != 0 {
+                    print!(", ");
+                }
+                print_sexp(key, ident_table);
+                print!(" ");
+                print_sexp(value, ident_table);
+                count += 1;
+            }
+            print!("}}");
         }
         &Sexp::Ident(sym) => {
             let name = ident_table.get_name(sym);
