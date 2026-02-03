@@ -21,7 +21,7 @@ impl Map {
 
     pub fn insert(&mut self, key: Val, value: Val) {
         match self {
-            &mut Map::SmallMap { ref mut len, ref mut items } if *len == SMALL_MAP_MAX => {
+            Map::SmallMap { len, items } if *len == SMALL_MAP_MAX => {
                 let mut hashmap = HashMap::new_in(Heap);
                 for i in 0..SMALL_MAP_MAX {
                     let (k, v) = items[i];
@@ -30,7 +30,7 @@ impl Map {
                 hashmap.insert(key, value);
                 *self = Map::HashMap(hashmap)
             }
-            &mut Map::SmallMap { ref mut len, ref mut items } => {
+            Map::SmallMap { len, items } => {
                 if let Some(i) = items.iter().take(*len).position(|(k, v)| key == *k) {
                     items[i]= (key, value); 
                 } else {
@@ -38,7 +38,7 @@ impl Map {
                     *len = *len + 1;
                 }
             }
-            &mut Map::HashMap(ref mut hashmap) => {
+            Map::HashMap(hashmap) => {
                 hashmap.insert(key, value);
             }
         }
@@ -46,14 +46,14 @@ impl Map {
 
     pub fn get(&self, key: Val) -> Val {
         match self {
-            &Map::SmallMap { ref len, ref items } => {
+            Map::SmallMap { len, items } => {
                 if let Some(i) = items.iter().take(*len).position(|(k, v)| key == *k) {
                     items[i].1
                 } else {
                     Symbol::nil()
                 }
             }
-            &Map::HashMap(ref hashmap) => {
+            Map::HashMap(hashmap) => {
                 *hashmap.get(&key).unwrap_or(&Symbol::nil())
             }           
         }
@@ -61,7 +61,7 @@ impl Map {
 
     pub fn remove(&mut self, key: Val) -> Val {
         match self {
-            &mut Map::SmallMap { ref mut len, ref mut items } => {
+            Map::SmallMap { len, items } => {
                 if let Some(i) = items.iter().take(*len).position(|(k, v)| key == *k) {
                     let deleted = items[i].1;
                     if i == *len - 1 {
@@ -76,7 +76,7 @@ impl Map {
                     Symbol::nil()
                 }
             }
-            &mut Map::HashMap(ref mut hashmap) => {
+            Map::HashMap(hashmap) => {
                 hashmap.remove(&key).unwrap_or(Symbol::nil())
             }           
         }
@@ -84,8 +84,8 @@ impl Map {
 
     pub fn len(&self) -> usize {
         match self {
-            &Map::SmallMap { ref len, ..} => { *len }
-            &Map::HashMap(ref hashmap) => { hashmap.len() }
+            Map::SmallMap { len, ..} => { *len }
+            Map::HashMap(hashmap) => { hashmap.len() }
         }
     }
 
@@ -95,10 +95,10 @@ impl Map {
 
     pub fn iter(&self) -> Box<dyn Iterator<Item=(Val, Val)> + '_> {
         match self {
-            &Map::SmallMap { ref len, ref items } => {
+            Map::SmallMap { len, items } => {
                 Box::new(items.iter().take(*len).map(|(k, v)| (*k, *v)))
             }
-            &Map::HashMap(ref hashmap) => {
+            Map::HashMap(hashmap) => {
                 Box::new(hashmap.iter().take(hashmap.len()).map(|(k, v)| (*k, *v)))
             }             
         }
