@@ -16,6 +16,7 @@ Special forms:
 (cond test1 expr1 test2 expr2 ...)
 (do expr1 expr2 ...)
 (set symbol expr)
+(return expr)
 
 (os/with-open-file file "name"
     (os/write-file header)

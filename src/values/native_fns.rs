@@ -3,7 +3,7 @@ use crate::global::Global;
 use super::*;
 pub type ShouldHalt = bool;
 #[derive(Copy, Clone)]
-pub struct NativeFn(pub fn(&[Val], &Global) -> (Val, ShouldHalt));
+pub struct NativeFn(pub fn(&[Val], &mut Global) -> (Val, ShouldHalt));
 
 impl NativeFn {
     pub fn addr(&self) -> usize {

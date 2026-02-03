@@ -1,14 +1,14 @@
 use crate::{common::*, global::Global};
 use crate::values::{Cases, NativeFn, Val};
 
-pub fn print(args: &[Val], global: &Global) -> (Val, bool) {
+pub fn print(args: &[Val], global: &mut Global) -> (Val, bool) {
     assert!(args.len() == 1);
     let arg = args[0];
     println!("{:?}", arg);
     (Val::nil(), false)
 }
 
-pub fn exit(args: &[Val], _global: &Global) -> (Val, bool) {
+pub fn exit(args: &[Val], _global: &mut Global) -> (Val, bool) {
     assert!(args.len() == 1);
     // TODO
     let placeholder = args[0];

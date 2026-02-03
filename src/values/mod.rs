@@ -146,6 +146,9 @@ impl Val {
             Tag::Object => {
                 Cases::Object( unsafe { &*(ptr as *const ByteCode)})
             }
+            Tag::NativeFn => {
+                Cases::NativeFn(unsafe { std::mem::transmute(ptr) })
+            }
             _ => unimplemented!()
         }
     }

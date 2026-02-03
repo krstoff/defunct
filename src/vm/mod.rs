@@ -169,6 +169,20 @@ impl<'a> Vm<'a> {
                         self.fp.ip = 0;
                         self.fp.base = self.values.len() - n as usize;
                     }
+                    Cases::NativeFn(native_fn) => {
+                        assert!(self.values.len() >= n as usize);
+                        let crate::values::NativeFn(f) = native_fn;
+                        let (begin, end) = (self.values.len() - n as usize, self.values.len());
+                        assert!(begin >= self.fp.base);
+                        let (result, should_halt) = f(&self.values[begin..end], self.global);
+                        if should_halt {
+                            return true;
+                        }
+                        for _ in 0..n {
+                            self.pop();
+                        }
+                        self.push(result);
+                    }
                     _ => {
                         // TODO: TypeError
                         unimplemented!()
