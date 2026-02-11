@@ -112,7 +112,14 @@ fn test_fn() {
         f (fn [x4] (* 10 x4))]
     (f x2))
   ";
-  eval_and_assert_eq(&mut global, src, Val::from_num(20.0))
+  eval_and_assert_eq(&mut global, src, Val::from_num(20.0));
+
+  let src = " (let [f (fn [] 20)] (f)) ";
+  eval_and_assert_eq(&mut global, src, Val::from_num(20.0));
+
+  let src = " (let [f (fn [] (fn [] 100))] ((f))) ";
+  eval_and_assert_eq(&mut global, src, Val::from_num(100.0));
+
 }
 
 // (fn [parameters*] body)
