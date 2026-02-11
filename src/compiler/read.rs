@@ -248,7 +248,7 @@ impl<'src, 'sym> Reader<'src, 'sym> {
     }
 }
 
-const SYMBOL_CHARS: &'static str = "+-*/:_!<>";
+const SYMBOL_CHARS: &'static str = "+-*/:_!<>=";
 
 fn is_symbol_start_char(c: char) -> bool {
     c.is_alphanumeric() || SYMBOL_CHARS.contains(c)

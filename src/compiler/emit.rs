@@ -5,6 +5,7 @@ use parse::Expr;
 use crate::{bytecode::ByteCode, compiler::parse::Primitives, values::{SymbolTable, Val}};
 /// Walks an AST, emitting bytecode instructions into bytecode objects in the program heap
 pub struct Emitter<'scope, 'idents, 'symbols, 'primitives> {
+    is_fn: bool,
     consts: Vec<Val>,
     code: Vec<u8>,
     sp: usize,
@@ -20,21 +21,27 @@ pub fn emit<'idents, 'symbols, 'primitives>(
     primitives: &'primitives Primitives,
     symbol_table: &'symbols mut SymbolTable,
     expr: &Expr
-) -> Vec<Val>
+) -> Result<Vec<Val>, EmitError>
 {
     let mut scope = Scope::new();
     let mut emitter = Emitter::new(&mut scope, idents, symbol_table, primitives);
-    emitter.emit(expr).expect("Failed to emit bytecode.");
+    emitter.emit(expr)?;
     let objs = emitter.finish();
-    objs
+    Ok(objs)
 }
 
 impl<'scope, 'idents, 'symbols, 'primitives> Emitter<'scope, 'idents, 'symbols, 'primitives> {
     fn new(scope: &'scope mut Scope, idents: &'idents IdentTable, symbol_table: &'symbols mut SymbolTable, primitives: &'primitives Primitives) -> Emitter<'scope, 'idents, 'symbols, 'primitives> {
-        Emitter { consts: Vec::new(), code: Vec::new(), sp: 0, scope, idents, symbol_table, primitives, code_objs: Vec::new() }
+        Emitter { is_fn: false, consts: Vec::new(), code: Vec::new(), sp: 0, scope, idents, symbol_table, primitives, code_objs: Vec::new() }
+    }
+    fn new_fn(scope: &'scope mut Scope, idents: &'idents IdentTable, symbol_table: &'symbols mut SymbolTable, primitives: &'primitives Primitives, args: usize) -> Emitter<'scope, 'idents, 'symbols, 'primitives> {
+        Emitter { is_fn: true, consts: Vec::new(), code: Vec::new(), sp: args, scope, idents, symbol_table, primitives, code_objs: Vec::new() }
     }
 
     fn finish(mut self) -> Vec<Val> {
+        if !self.is_fn {
+            self.push_code(OpCode::Halt as u8);
+        }
         // todo: allocate this in the heap
         let consts = Box::leak(self.consts.into_boxed_slice()) as *mut _;
         let code = Box::leak(self.code.into_boxed_slice()) as *mut _;
@@ -62,7 +69,7 @@ impl<'scope, 'idents, 'symbols, 'primitives> Emitter<'scope, 'idents, 'symbols, 
         self.code.len()
     }
 
-    fn emit(&mut self, expr: &Expr) -> Result<(), CompileError> {
+    fn emit(&mut self, expr: &Expr) -> Result<(), EmitError> {
         use Expr::*;
         use crate::bytecode::OpCode;
         match expr {
@@ -107,7 +114,7 @@ impl<'scope, 'idents, 'symbols, 'primitives> Emitter<'scope, 'idents, 'symbols, 
             Ident(symbol) => {
                 if let Some(slot) = self.scope.lookup(symbol) {
                     if(slot > 256) {
-                        return Err(CompileError::SlotTooLarge(slot))
+                        return Err(EmitError::SlotTooLarge(slot))
                     }
                     self.push_code(OpCode::Dup as u8);
                     self.push_code(slot as u8);
@@ -172,8 +179,7 @@ impl<'scope, 'idents, 'symbols, 'primitives> Emitter<'scope, 'idents, 'symbols, 
                     scope.push(b, sp);
                     sp += 1;
                 }
-                let mut body_emitter = Emitter::new(&mut scope, self.idents, self.symbol_table, self.primitives);
-                let mut first_expression = true;
+                let mut body_emitter = Emitter::new_fn(&mut scope, self.idents, self.symbol_table, self.primitives, sp);
                 body_emitter.emit(body)?;
                 body_emitter.push_code(OpCode::Ret as u8);
                 body_emitter.push_code(bindings.len() as u8);
@@ -200,15 +206,16 @@ impl<'scope, 'idents, 'symbols, 'primitives> Emitter<'scope, 'idents, 'symbols, 
             If { condition, resultant, else_branch } => {
                 self.emit(condition)?;
                 self.push_code(OpCode::BrNil as u8);
-                let false_jmp_param = self.push_code(0); // if condition is false, branch to else-block
+                let br_on_false_param = self.push_code(0); // if condition is false, branch to else-block
 
                 self.emit(resultant)?;
                 self.push_code(OpCode::Jmp as u8);
-                let true_exit_jmp_param = self.push_code(0); // after resultant block, jmp past end of the else-block
+                let jmp_exit_on_true_param = self.push_code(0); // after resultant block, jmp past end of the else-block
 
                 self.emit(else_branch)?;
-                self.write(false_jmp_param, (true_exit_jmp_param - false_jmp_param - 1) as u8);
-                self.write(true_exit_jmp_param, self.end() as u8);
+                // patch jmps
+                self.write(br_on_false_param, (jmp_exit_on_true_param - br_on_false_param + 1) as u8);
+                self.write(jmp_exit_on_true_param, (self.end() - jmp_exit_on_true_param) as u8);
                 Ok(())
             }
             Set(symbol, value) => {
@@ -258,7 +265,7 @@ impl Scope {
     }
 
     pub fn lookup(&self, symbol: &Ident) -> Option<Slot> {
-        self.symbols.iter().find(
+        self.symbols.iter().rev().find(
             |(sym, slot)| sym == symbol
         )
         .map(|(sym, slot)| *slot)
@@ -266,6 +273,6 @@ impl Scope {
 }
 
 #[derive(Debug)]
-pub enum CompileError {
+pub enum EmitError {
     SlotTooLarge(usize)
 }

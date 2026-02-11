@@ -148,7 +148,7 @@ impl<'a> Vm<'a> {
                 let val = self.pop();
                 let i = self.take_operand();
                 if val == Symbol::nil() {
-                    self.fp.ip = i as usize;
+                    self.fp.ip += i as usize;
                 }
             }
             Jmp => {
@@ -383,10 +383,14 @@ impl<'a> Vm<'a> {
     }
 
     pub fn print_state(&self) {
+        let addr_shorthand = self.fp.code.addr();
+        print!("[{:x}]", addr_shorthand);
         let op = unsafe { to_op((*self.fp.code)[self.fp.ip]) };
-        print!("{}", op.to_str());
+        print!("\t{:3}", op.to_str());
         if op.has_param() {
-            print!(" #{}", unsafe { (*self.fp.code)[self.fp.ip + 1] })
+            print!(" \t#{}", unsafe { (*self.fp.code)[self.fp.ip + 1] })
+        } else {
+            print!("\t");
         }
         
         println!("\t{:?}", &self.values[..])

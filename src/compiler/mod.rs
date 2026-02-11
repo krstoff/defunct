@@ -9,11 +9,11 @@ use sexp::Sexp;
 use idents::{Ident, IdentTable};
 use read::Reader;
 use parse::{Specials, parse};
-use crate::{bytecode::OpCode, values::SymbolTable};
+use crate::{bytecode::OpCode, compiler::{emit::EmitError, parse::Primitives, read::ReadError, parse::ParseError}, values::{Symbol, SymbolTable}};
 pub use assembler::assemble;
 use crate::bytecode::ByteCode;
 
-const PRIMITIVES: [(&'static str, OpCode); 9] = [
+const PRIMITIVES: &[(&'static str, OpCode)] = &[
     ("+", OpCode::Add),
     ("-", OpCode::Sub),
     ("*", OpCode::Mul),
@@ -24,6 +24,37 @@ const PRIMITIVES: [(&'static str, OpCode); 9] = [
     (">=", OpCode::Gte),
     ("eq", OpCode::Eq),
 ];
+
+#[derive(Debug)]
+pub enum CompileError {
+    Read(ReadError),
+    Parse(ParseError),
+    Emit(EmitError),
+}
+
+impl From<ReadError> for CompileError {
+    fn from(re: ReadError) -> CompileError { CompileError::Read(re) }
+}
+
+impl From<ParseError> for CompileError {
+    fn from(pe: ParseError) -> CompileError { CompileError::Parse(pe) }
+}
+
+impl From<EmitError> for CompileError {
+    fn from(ee: EmitError) -> CompileError { CompileError::Emit(ee) }
+}
+
+pub fn compile(src: &str, st: &mut SymbolTable) -> Result<Vec<ByteCode>, CompileError> {
+    let mut ident_table = IdentTable::new();
+    let mut reader = read::Reader::new(src, &mut ident_table);
+    let sexp = reader.read()?;
+    let primitives = Primitives::new_in(&mut ident_table);
+    let specials = Specials::new_in(&mut ident_table);
+    let parsed = parse(&sexp, &specials, &primitives)?;
+    let objects = emit::emit(&ident_table, &primitives, st, &parsed)?;
+    let _objects: Vec<ByteCode> = objects.into_iter().map(|b| b.try_into().unwrap()).collect();
+    Ok(_objects)
+}
 
 #[cfg(test)]
 mod test {
@@ -153,7 +184,7 @@ mod test {
         }.unwrap();
         let primitives = Primitives::new_in(&mut idents);
         let parsed = parse(&sexp, &specials, &primitives).unwrap();
-        let objects = emit::emit(&idents, &primitives, &mut symbols, &parsed);
+        let objects = emit::emit(&idents, &primitives, &mut symbols, &parsed).expect("Failed to emit bytecode");
         for obj in objects.iter() {
             let bytecode: &ByteCode = obj.try_into().unwrap();
             println!("\n{:?}", bytecode);

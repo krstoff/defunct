@@ -1,5 +1,5 @@
 mod alloc;
-mod bytecode;
+pub mod bytecode;
 mod vm;
 pub mod values;
 pub mod global;

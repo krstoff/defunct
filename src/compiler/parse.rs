@@ -88,7 +88,7 @@ impl Primitives {
         let mut primitives = std::collections::HashMap::new();
         for (name, op) in PRIMITIVES {
             let sym = it.intern(name);
-            primitives.insert(sym, op);
+            primitives.insert(sym, *op);
         }
 
         Primitives(primitives)

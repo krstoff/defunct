@@ -110,6 +110,12 @@ pub struct ByteCode {
     pub code: *const [u8],
 }
 
+impl Clone for ByteCode {
+    fn clone(&self) -> ByteCode {
+        ByteCode { consts: self.consts, code: self.code }
+    }
+}
+
 impl ByteCode {
     pub fn new(consts: *const [Val], code: *const [u8]) -> Val {
        let mut ptr = Heap::new::<ByteCode>();
@@ -121,8 +127,10 @@ impl ByteCode {
 impl std::fmt::Debug for ByteCode {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         use OpCode::*;
+        let pointer = self.code.addr();
+        write!(f, "[{:x}]\n", pointer)?;
         unsafe {
-            f.write_str("---CONSTS---\n");
+            f.write_str("------\n");
             for val in &*self.consts {
                 if val.is_int() {
                     write!(f, "{}, ", val.get_int().unwrap())?
@@ -136,27 +144,42 @@ impl std::fmt::Debug for ByteCode {
             }
         }
         unsafe {
-            f.write_str("\n---CODE---\n");
+            f.write_str("\n------\n");
             let mut i = 0;
             while i < self.code.len() {
                 let op =  to_op((*self.code)[i]);
                 write!(f, "{}: ", i)?;
-                write!(f, "{}", op.to_str())?;
+                write!(f, "{:5}", op.to_str())?;
                 if op.has_param() {
-                    write!(f, " #{}", (*self.code)[i+1])?;
+                    write!(f, " \t#{}", (*self.code)[i+1])?;
                     i += 1;
                 }
                 write!(f, "\n")?;
                 i += 1;
             }
-            f.write_str("---END---\n")
+            f.write_str("------\n")
+        }
+    }
+}
+
+impl<'a> TryFrom<Val> for ByteCode {
+    type Error = crate::values::Tag;
+    fn try_from(v: Val) -> Result<ByteCode, crate::values::Tag> {
+        use crate::values::Cases;
+        match v.get() {
+            Cases::Object(p) => {
+                Ok(p.clone())
+            }
+            _ => {
+                Err(v.tag())
+            }
         }
     }
 }
 
 impl<'a> TryFrom<&'a Val> for &'a ByteCode {
     type Error = crate::values::Tag;
-    fn try_from(v: &Val) -> Result<&ByteCode, crate::values::Tag> {
+    fn try_from(v: &'a Val) -> Result<&'a ByteCode, crate::values::Tag> {
         use crate::values::Cases;
         match v.get() {
             Cases::Object(p) => {
