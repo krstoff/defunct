@@ -4,11 +4,11 @@ use crate::values::{Cases, NativeFn, Val};
 pub const INTRINSICS: &[(&str, NativeFn)] = &[
     ("print", NativeFn(print)),
     ("exit", NativeFn(exit)),
-    ("vector-push", NativeFn(vector_push)),
-    ("vector-len", NativeFn(vector_len)),
-    ("vector-set", NativeFn(vector_set)),
+    ("vector-push!", NativeFn(vector_push)),
+    ("vector-length", NativeFn(vector_len)),
+    ("vector-set!", NativeFn(vector_set)),
     ("vector-get", NativeFn(vector_get)),
-    ("vector-pop", NativeFn(vector_pop))
+    ("vector-pop!", NativeFn(vector_pop))
 ];
 
 pub fn print(args: &[Val], global: &mut Global) -> (Val, bool) {
@@ -29,6 +29,7 @@ pub fn exit(args: &[Val], _global: &mut Global) -> (Val, bool) {
     }
 }
 
+// (vector-push vector value) -> nil
 pub fn vector_push(args: &[Val], global: &mut Global) -> (Val, bool) {
     assert!(args.len() == 2);
     let (_vector, to_push) = (args[0], args[1]);
@@ -41,7 +42,7 @@ pub fn vector_push(args: &[Val], global: &mut Global) -> (Val, bool) {
     (Val::nil(), false)
 }
 
-
+// (vector-len vector) -> integer
 pub fn vector_len(args: &[Val], global: &mut Global) -> (Val, bool) {
     assert!(args.len() == 1);
     let _vector = args[0] ;
@@ -54,14 +55,17 @@ pub fn vector_len(args: &[Val], global: &mut Global) -> (Val, bool) {
     (len, false)
 }
 
+// (vector-get vector index) -> item_i
 pub fn vector_get(args: &[Val], global: &mut Global) -> (Val, bool) {
     assert!(args.len() == 2);
     let (_vector, _index) = (args[0], args[1]);
     let item = match (_vector.get(), _index.get()) {
         (Cases::Vector(vector), Cases::Num(index)) => {
+            if index < 0.0 { unimplemented!() }
             vector.get(index as usize)
         }
         (Cases::Vector(vector), Cases::Int(index)) => {
+            if index < 0 { unimplemented!() }
             vector.get(index as usize)
         }
         _ => unimplemented!()
@@ -69,6 +73,7 @@ pub fn vector_get(args: &[Val], global: &mut Global) -> (Val, bool) {
     (item, false)
 }
 
+// (vector-pop vector) -> last-item
 pub fn vector_pop(args: &[Val], global: &mut Global) -> (Val, bool) {
     assert!(args.len() == 1);
     let _vector = args[0];
@@ -81,14 +86,17 @@ pub fn vector_pop(args: &[Val], global: &mut Global) -> (Val, bool) {
     (popped, false)
 }
 
+/// (vector-set vector index addend) -> nil
 pub fn vector_set(args: &[Val], global: &mut Global) -> (Val, bool) {
     assert!(args.len() == 3);
     let (_vector, _index, to_add) = (args[0], args[1], args[2]);
      match (_vector.get(), _index.get()) {
         (Cases::Vector(vector), Cases::Num(index)) => {
+            if index < 0.0 { unimplemented!() }
             vector.set(index as usize, to_add)
         }
         (Cases::Vector(vector), Cases::Int(index)) => {
+            if index < 0 { unimplemented!() }
             vector.set(index as usize, to_add)
         }
         _ => unimplemented!()

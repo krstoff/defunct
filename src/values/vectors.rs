@@ -78,7 +78,7 @@ mod test {
         for i in 0..100 {
             v.push(Val::from_int(i));
         }
-        v.set(100, Val::from_int(1000));
+        v.set(100, Val::from_int(1000)).unwrap();
     }
 
     #[test]
@@ -88,7 +88,7 @@ mod test {
         for i in 0..100 {
             v.push(Val::from_int(i));
         }
-        v.get(100);
+        v.get(100).unwrap();
     }
 
     #[test]
@@ -103,6 +103,6 @@ mod test {
             v.pop();
         }
 
-        v.pop();
+        v.pop().unwrap();
     }
 }

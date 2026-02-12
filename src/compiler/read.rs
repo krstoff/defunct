@@ -268,11 +268,11 @@ fn is_symbol_start_char(c: char) -> bool {
 }
 
 fn is_number_start_char(c: char) -> bool {
-    c.is_ascii_digit()
+    c.is_ascii_digit() || c == '.' || c == '-'
 }
 
 fn is_number_char(c: char) -> bool {
-    c.is_ascii_digit() || c == '.' || c == '_'
+    c.is_ascii_digit() || c == '.' || c == '_' || c == '-'
 }
 
 fn is_symbol_char(c: char) -> bool {
