@@ -8,7 +8,12 @@ pub const INTRINSICS: &[(&str, NativeFn)] = &[
     ("vector-length", NativeFn(vector_len)),
     ("vector-set!", NativeFn(vector_set)),
     ("vector-get", NativeFn(vector_get)),
-    ("vector-pop!", NativeFn(vector_pop))
+    ("vector-pop!", NativeFn(vector_pop)),
+    ("map-put!", NativeFn(map_put)),
+    ("map-get", NativeFn(map_get)),
+    ("map-length", NativeFn(map_length)),
+    ("map-remove!", NativeFn(map_remove)),
+    ("map-clear!", NativeFn(map_clear))
 ];
 
 pub fn print(args: &[Val], global: &mut Global) -> (Val, bool) {
@@ -102,4 +107,65 @@ pub fn vector_set(args: &[Val], global: &mut Global) -> (Val, bool) {
         _ => unimplemented!()
     }.expect("Vector index was out of bounds");
     (Val::nil(), false)
+}
+
+/// (map-put map key value) -> old_value
+pub fn map_put(args: &[Val], global: &mut Global) -> (Val, bool) {
+    assert!(args.len() == 3);
+    let (_map, _key, _val) = (args[0], args[1], args[2]);
+    match _map.get() {
+        Cases::Map(map) => {
+            (map.insert(_key, _val), false)
+        }
+        _ => unimplemented!()
+    }
+}
+
+/// (map-get map key) -> value
+pub fn map_get(args: &[Val], global: &mut Global) -> (Val, bool) {
+    assert!(args.len() == 2);
+    let (_map, _key) = (args[0], args[1]);
+    match _map.get() {
+        Cases::Map(map) => {
+            (map.get(_key), false)
+        }
+        _ => unimplemented!()
+    }
+}
+
+/// (map-remove map key) -> old_value
+pub fn map_remove(args: &[Val], global: &mut Global) -> (Val, bool) {
+    assert!(args.len() == 2);
+    let (_map, _key) = (args[0], args[1]);
+    match _map.get() {
+        Cases::Map(map) => {
+            (map.remove(_key), false)
+        }
+        _ => unimplemented!()
+    }
+}
+
+/// (map-count map) -> integer
+pub fn map_length(args: &[Val], global: &mut Global) -> (Val, bool) {
+    assert!(args.len() == 1);
+    let _map = args[0];
+    match _map.get() {
+        Cases::Map(map) => {
+            (Val::from_int(map.len() as i32), false)
+        }
+        _ => unimplemented!()
+    }
+}
+
+/// (map-clear! map)
+pub fn map_clear(args: &[Val], global: &mut Global) -> (Val, bool) {
+    assert!(args.len() == 1);
+    let _map = args[0];
+    match _map.get() {
+        Cases::Map(map) => {
+            map.clear();
+            (Val::nil(), false)
+        }
+        _ => unimplemented!()
+    }
 }

@@ -19,7 +19,7 @@ impl Map {
         }
     }
 
-    pub fn insert(&mut self, key: Val, value: Val) {
+    pub fn insert(&mut self, key: Val, value: Val) -> Val {
         match self {
             Map::SmallMap { len, items } if *len == SMALL_MAP_MAX => {
                 let mut hashmap = HashMap::new_in(Heap);
@@ -27,19 +27,23 @@ impl Map {
                     let (k, v) = items[i];
                     hashmap.insert(k, v);
                 }
-                hashmap.insert(key, value);
-                *self = Map::HashMap(hashmap)
+                let old_value = hashmap.insert(key, value);
+                *self = Map::HashMap(hashmap);
+                old_value.unwrap_or(Val::nil())
             }
             Map::SmallMap { len, items } => {
                 if let Some(i) = items.iter().take(*len).position(|(k, v)| key == *k) {
-                    items[i]= (key, value); 
+                    let old_value = items[i];
+                    items[i] = (key, value);
+                    old_value.1
                 } else {
                     items[*len] = (key, value);
                     *len = *len + 1;
+                    Val::nil()
                 }
             }
             Map::HashMap(hashmap) => {
-                hashmap.insert(key, value);
+                hashmap.insert(key, value).unwrap_or(Val::nil())
             }
         }
     }

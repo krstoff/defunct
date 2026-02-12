@@ -12,6 +12,7 @@ enum ReadErrorReason {
     UnbalancedParen,
     UnbalancedBrace,
     UnbalancedMapItems,
+    BareColon,
     EOF
 }
 use ReadErrorReason::*;
@@ -46,6 +47,9 @@ impl std::fmt::Debug for ReadError {
             }
             EOF => {
                 write!(f, "Unexpected end of file")
+            }
+            BareColon => {
+                write!(f, "Invalid symbol name: ':' ")
             }
         }
     }
@@ -217,7 +221,7 @@ impl<'src, 'sym> Reader<'src, 'sym> {
 
     fn read_keyword(&mut self, start: usize) -> Result<Sexp, ReadError> {
         self.chars.next(); // trim ':'
-        if let None = self.chars.next() {
+        if let None = self.chars.peek() {
             return Err(self.error(EOF))
         }
         let symbol = self.read_symbol(start + 1)?;
@@ -233,6 +237,9 @@ impl<'src, 'sym> Reader<'src, 'sym> {
             }
             last_index = *i;
             self.chars.next();
+        }
+        if last_index == 0 {
+            return Err(self.error(BareColon))
         }
         let chars = &self.src[start..last_index + 1];
         Ok(Sexp::Ident(self.idents.intern(chars)))
@@ -261,7 +268,7 @@ impl<'src, 'sym> Reader<'src, 'sym> {
     }
 }
 
-const SYMBOL_CHARS: &'static str = "+-*/:_!<>=";
+const SYMBOL_CHARS: &'static str = "+-*/_!<>=";
 
 fn is_symbol_start_char(c: char) -> bool {
     c.is_alphanumeric() || SYMBOL_CHARS.contains(c)

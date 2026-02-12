@@ -95,7 +95,7 @@ impl<'scope, 'idents, 'symbols, 'primitives> Emitter<'scope, 'idents, 'symbols, 
                 Ok(())
             }
             MapLiteral(items) => {
-                self.push_code(OpCode::VecNew as u8);
+                self.push_code(OpCode::MapNew as u8);
                 let map_slot = self.sp;
                 self.sp += 1;
                 for (key, value) in items {
