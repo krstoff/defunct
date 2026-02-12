@@ -1,30 +1,5 @@
-use defunct::Vm;
-use defunct::global::Global;
-use defunct::compiler::compile;
-use defunct::bytecode::ByteCode;
-use defunct::values::{Cases, Val};
-
-fn eval(global: &mut Global, src: &str) -> Val {
-    let bytecode = compile(src, &mut global.st).expect("Could not compile bytecode.").pop().unwrap().clone();
-    let mut vm = Vm::new(global, bytecode, &[], false);
-    let result = vm.run();
-    result
-}
-
-fn trace(global: &mut Global, src: &str) {
-    let mut code_objs = compile(src, &mut global.st).expect("Could not compile bytecode.");
-    for obj in &code_objs {
-      println!("{:?}", obj);
-    }
-    let bytecode = code_objs.pop().unwrap();
-    let mut vm = Vm::new(global, bytecode, &[], true);
-    let result = vm.run();
-}
-
-fn eval_and_assert_eq(global: &mut Global, src: &str, test_val: Val) {
-    let result = eval(global, src);
-    assert_eq!(result, test_val);
-}
+mod common;
+use common::*;
 
 #[test]
 fn _let() {
@@ -187,4 +162,13 @@ fn _return() {
   ";
 
   eval_and_assert_eq(&mut global, src, Val::from_num(120.00));
+
+  let src = "
+  (let [f (fn [] (fn [x]
+                   (return (+ x 1))
+                   1))]
+    ((f) 1000))
+  ";
+
+  eval_and_assert_eq(&mut global, src, Val::from_num(1001.00));
 }
