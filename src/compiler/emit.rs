@@ -192,14 +192,20 @@ impl<'scope, 'idents, 'symbols, 'primitives> Emitter<'scope, 'idents, 'symbols, 
                 Ok(())
             }
             Do(exprs) => {
+                if exprs.len() == 0 {
+                    self.push_code(OpCode::Const as u8);
+                    self.push_code(self.consts.len() as u8);
+                    self.push_const(Val::nil());
+                    return Ok(())
+                }
                 let mut first_expression = true;
                 for expr in exprs {
                     if !first_expression {
                         self.push_code(OpCode::Pop as u8);
                         self.push_code(1);
-                        first_expression = false;
                     }
                     self.emit(expr)?;
+                    first_expression = false;
                 }
                 Ok(())
             }
@@ -214,7 +220,7 @@ impl<'scope, 'idents, 'symbols, 'primitives> Emitter<'scope, 'idents, 'symbols, 
 
                 self.emit(else_branch)?;
                 // patch jmps
-                self.write(br_on_false_param, (jmp_exit_on_true_param - br_on_false_param + 1) as u8);
+                self.write(br_on_false_param, (jmp_exit_on_true_param - br_on_false_param) as u8);
                 self.write(jmp_exit_on_true_param, (self.end() - jmp_exit_on_true_param) as u8);
                 Ok(())
             }

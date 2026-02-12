@@ -27,7 +27,7 @@ fn eval_and_assert_eq(global: &mut Global, src: &str, test_val: Val) {
 }
 
 #[test]
-fn test_let() {
+fn _let() {
     let mut global = Global::new();
 
     eval_and_assert_eq(&mut global, "
@@ -65,7 +65,7 @@ fn test_let() {
 }
 
 #[test]
-fn test_if() {
+fn _if() {
   let mut global = Global::new();
   eval_and_assert_eq(&mut global, "
   (if (> 1.0 2.0)
@@ -86,7 +86,7 @@ fn test_if() {
 }
 
 #[test]
-fn test_fn() {
+fn _fn() {
   let mut global = Global::new();
   // todo: closures
   let src = "
@@ -122,8 +122,69 @@ fn test_fn() {
 
 }
 
-// (fn [parameters*] body)
-// (cond test1 expr1 test2 expr2 ...)
-// (do expr1 expr2 ...)
-// (set symbol expr)
-// (return expr)
+#[test]
+fn _do() {
+  let mut global = Global::new();
+  let src = "(do)";
+  eval_and_assert_eq(&mut global, src, Val::nil());
+
+  let src = "(do 1 2 3 5)";
+  eval_and_assert_eq(&mut global, src, Val::from_num(5.0));
+
+  let src = "
+  (do
+    (do
+      1
+      2
+      4)
+    (do)
+    (do 1))
+  ";
+  
+  eval_and_assert_eq(&mut global, src, Val::from_num(1.0))
+}
+
+#[test]
+fn _set() {
+  let mut global = Global::new();
+  let src = "(do (set x 1.0) (+ x 1.0))";
+  eval_and_assert_eq(&mut global, src, Val::from_num(2.0));
+  let src = "
+  (let [f (fn [x]
+            (set *rendezvous* (+ x 100.0))
+            *rendezvous*)]
+    (f 20))
+  ";
+
+  eval_and_assert_eq(&mut global, src, Val::from_num(120.0));
+
+  let src = "
+  (do
+    (set transform
+      (fn [t] (+ 0.001 t)))
+    (transform 2.0))
+  ";
+  eval_and_assert_eq(&mut global, src, Val::from_num(2.001));
+
+  let src = "(transform 500)";
+  eval_and_assert_eq(&mut global, src, Val::from_num(500.001));
+}
+
+#[test]
+fn _return() {
+  let mut global = Global::new();
+  let src = "
+(let [f (fn [x]
+          (+ x 1)
+          (+ x 1)
+          (+ x 1)
+          (+ x 1)
+          (return (+ x 100))
+          (+ x 1)
+          (+ x 1)
+          (+ x 1))]
+  (f 20))
+  ";
+
+  eval_and_assert_eq(&mut global, src, Val::from_num(120.00));
+}

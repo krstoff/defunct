@@ -347,6 +347,7 @@ impl<'a> Vm<'a> {
                 match sym.get() {
                     Cases::Symbol(mut sym) => {
                         sym.set(val);
+                        self.push(val);
                     }
                     _ => {
                         // TODO: TypeError
