@@ -274,7 +274,7 @@ impl<'a> Vm<'a> {
                 match (vec.get(), index.get()) {
                     (Cases::Vector(ptr), Cases::Int(i))  if i >= 0 => {
                         let v = unsafe {&mut *ptr};
-                        self.push(v.get(i as usize));
+                        self.push(v.get(i as usize).unwrap());
                     }
                     _ => {
                         // TODO: TypeError
@@ -313,7 +313,7 @@ impl<'a> Vm<'a> {
                 let vec = self.pop();
                 match vec.get() {
                     Cases::Vector(v) => {
-                        self.push(v.pop());                       
+                        self.push(v.pop().unwrap());                       
                     }
                     _ => {
                         // TODO: TypeError

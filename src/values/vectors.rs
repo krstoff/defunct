@@ -9,20 +9,20 @@ impl Vector {
         Vector(Vec::new_in(Heap))
     }
 
-    pub fn get(&self, i: usize) -> Val {
-        (self.0)[i]
+    pub fn get(&self, i: usize) -> Option<Val> {
+        (self.0).get(i).map(|item| *item)
     }
 
-    pub fn set(&mut self, i: usize, v: Val) {
-        (self.0)[i] = v;
+    pub fn set(&mut self, i: usize, v: Val) -> Option<()> {
+        (self.0).get_mut(i).map(|slot| *slot = v)
     }
 
     pub fn push(&mut self, v: Val) {
         (self.0).push(v);
     }
 
-    pub fn pop(&mut self) -> Val {
-        (self.0).pop().unwrap()
+    pub fn pop(&mut self) -> Option<Val> {
+        (self.0).pop()
     }
 
     pub fn len(&self) -> Val {
@@ -60,15 +60,15 @@ mod test {
         for i in 0..100 {
             v.push(Val::from_int(i));
         }
-        assert_eq!(Val::from_int(50), v.get(50));
+        assert_eq!(Val::from_int(50), v.get(50).unwrap());
         assert_eq!(v.len(), Val::from_int(100));
         v.set(50, Val::from_int(951));
-        assert_eq!(v.get(50), Val::from_int(951));
+        assert_eq!(v.get(50).unwrap(), Val::from_int(951));
         for i in 0..99 {
             v.pop();
         }
         assert_eq!(v.len(), Val::from_int(1));
-        assert_eq!(v.pop(), Val::from_int(0));
+        assert_eq!(v.pop().unwrap(), Val::from_int(0));
     }
 
     #[test]
