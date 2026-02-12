@@ -130,6 +130,15 @@ impl<'scope, 'idents, 'symbols, 'primitives> Emitter<'scope, 'idents, 'symbols, 
                     Ok(())
                 }
             }
+            Keyword(ident) => {
+                // This is just quote for now, until I get the design right.
+                let name = self.idents.get_name(*ident);
+                let interned_symbol = self.symbol_table.intern(name);
+                self.push_code(OpCode::Const as u8);
+                self.push_code(self.consts.len() as u8);
+                self.push_const(interned_symbol.as_val());
+                Ok(())
+            }
             PrimOp { op, left, right } => {
                 let opcode = self.primitives.get(*op).unwrap();
                 self.emit(left);
@@ -140,6 +149,9 @@ impl<'scope, 'idents, 'symbols, 'primitives> Emitter<'scope, 'idents, 'symbols, 
                 Ok(())
             }
             Apply { _fn, args } => {
+                if let &Expr::Keyword(_) = &**_fn {
+                    unimplemented!()
+                }
                 for arg in args {
                     self.emit(arg)?;
                     self.sp += 1;

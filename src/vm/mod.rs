@@ -159,6 +159,8 @@ impl<'a> Vm<'a> {
                 let n = self.take_operand();
                 let f = self.pop();
                 match f.get() {
+                    // WARNING: Do not EVER try to make the virtual machine call symbols, because
+                    // some symbols (keywords) are self-referencing and this will cause an infinite loop
                     Cases::Function(ptr) => {
                         self.frames.push(self.fp);
                         unsafe {

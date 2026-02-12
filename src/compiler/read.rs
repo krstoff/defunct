@@ -118,6 +118,9 @@ impl<'src, 'sym> Reader<'src, 'sym> {
             Some((_, '{')) => {
                 self.read_map()
             }
+            Some((i, ':')) => {
+                self.read_keyword(i)
+            }
             Some((i, c)) if is_number_start_char(c) => {
                 self.read_number(i)
             }
@@ -210,6 +213,16 @@ impl<'src, 'sym> Reader<'src, 'sym> {
         }
 
         Ok(Sexp::Map(items))
+    }
+
+    fn read_keyword(&mut self, start: usize) -> Result<Sexp, ReadError> {
+        self.chars.next(); // trim ':'
+        if let None = self.chars.next() {
+            return Err(self.error(EOF))
+        }
+        let symbol = self.read_symbol(start + 1)?;
+        if let(Sexp::Ident(ident)) = symbol { Ok(Sexp::Keyword(ident)) }
+        else { panic!("read_symbol returned something else. this should not happen") }
     }
 
     fn read_symbol(&mut self, start: usize) -> Result<Sexp, ReadError> {

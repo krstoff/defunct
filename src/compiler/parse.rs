@@ -26,6 +26,7 @@ pub enum Expr {
     VectorLiteral(Vec<Expr>),
     MapLiteral(Vec<(Expr, Expr)>),
     Ident(Ident),
+    Keyword(Ident),
     Apply {
         _fn: Box<Expr>,
         args: Vec<Expr>,
@@ -103,6 +104,7 @@ pub fn parse(sexp: &Sexp, specials: &Specials, primitives: &Primitives) -> Resul
     match sexp {
         Number(num) => Ok(Expr::NumLiteral(*num)),
         Ident(sym) => Ok(Expr::Ident(*sym)),
+        Keyword(sym) => Ok(Expr::Keyword(*sym)),
         List(items) => {
             assert!(items.len() > 0);
             match &items[0] {
@@ -238,6 +240,12 @@ pub fn parse(sexp: &Sexp, specials: &Specials, primitives: &Primitives) -> Resul
                     Ok(Expr::Apply {
                         _fn: Box::new( Expr::Ident(*sym) ),
                         args: parse_list(args, specials, primitives)?,
+                    })
+                }
+                Keyword(ident) => {
+                    Ok(Expr::Apply {
+                        _fn: Box::new(Expr::Keyword(*ident)),
+                        args: parse_list(&items[1..], specials, primitives)?,
                     })
                 }
                 Vector(inner_list) => {

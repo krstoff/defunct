@@ -6,6 +6,7 @@ pub enum Sexp {
     Vector(Vec<Sexp>),
     Map(Vec<(Sexp, Sexp)>),
     Ident(Ident),
+    Keyword(Ident),
     Number(f64),
 }
 
@@ -85,6 +86,10 @@ pub fn print_sexp(sexp: &Sexp, ident_table: &IdentTable) {
         &Sexp::Ident(sym) => {
             let name = ident_table.get_name(sym);
             print!("{}", name);
+        }
+        &Sexp::Keyword(ident) => {
+            let name = ident_table.get_name(ident);
+            print!(":{}", name)
         }
         &Sexp::Number(num) => {
             print!("{}", num)
